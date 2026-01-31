@@ -39,7 +39,12 @@ export class CustomerMatcher {
     }
 
     private async matchByPhone(phone: string): Promise<CustomerMatch | null> {
-        const sanitized = phone.replace(/\D/g, '').slice(-10);
+        // Handle Colombian phone format: remove country code 57 if present, get last 10 digits
+        let sanitized = phone.replace(/\D/g, '');
+        if (sanitized.startsWith('57') && sanitized.length > 10) {
+            sanitized = sanitized.substring(2); // Remove '57' prefix
+        }
+        sanitized = sanitized.slice(-10); // Get last 10 digits
         
         const [rows] = await this.pool.execute(`
             SELECT 

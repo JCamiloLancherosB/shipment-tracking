@@ -6,8 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
-    "test": "jest"
+    "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
     "axios": "^1.6.0",

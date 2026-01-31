@@ -35,8 +35,8 @@ export class FolderWatcher {
                     this.processedFiles.add(filePath);
                     await this.onFile(filePath);
                     
-                    // Move to processed folder
-                    this.moveToProcessed(filePath);
+                    // Move to processed folder after processing completes
+                    await this.moveToProcessed(filePath);
                 }
             })
             .on('error', (error) => {
@@ -55,16 +55,22 @@ export class FolderWatcher {
 
     private isValidFile(filePath: string): boolean {
         const ext = path.extname(filePath).toLowerCase();
-        return ['.pdf', '.png', '.jpg', '.jpeg', '.webp'].includes(ext);
+        return ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.bmp'].includes(ext);
     }
 
-    private moveToProcessed(filePath: string): void {
-        const processedDir = path.join(this.watchPath, 'processed');
-        if (!fs.existsSync(processedDir)) {
-            fs.mkdirSync(processedDir, { recursive: true });
-        }
+    private async moveToProcessed(filePath: string): Promise<void> {
+        try {
+            const processedDir = path.join(this.watchPath, 'processed');
+            if (!fs.existsSync(processedDir)) {
+                fs.mkdirSync(processedDir, { recursive: true });
+            }
 
-        const newPath = path.join(processedDir, path.basename(filePath));
-        fs.renameSync(filePath, newPath);
+            const newPath = path.join(processedDir, path.basename(filePath));
+            
+            // Use async rename to avoid blocking
+            await fs.promises.rename(filePath, newPath);
+        } catch (error) {
+            console.error('Error moving file to processed folder:', error);
+        }
     }
 }

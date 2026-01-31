@@ -66,15 +66,15 @@ export function setupRoutes(app: express.Application, services: Services): void 
             // Send via WhatsApp
             const sent = await services.sender.sendGuide(customer.phone, guideData, filePath);
             
-            // Clean up
-            fs.unlinkSync(filePath);
-
             if (sent) {
                 await services.matcher.updateOrderTracking(
                     customer.orderNumber, 
                     guideData.trackingNumber, 
                     guideData.carrier
                 );
+
+                // Clean up after successful send and DB update
+                fs.unlinkSync(filePath);
 
                 return res.json({
                     success: true,
@@ -84,6 +84,8 @@ export function setupRoutes(app: express.Application, services: Services): void 
                     customer: customer.name
                 });
             } else {
+                // Clean up on send failure
+                fs.unlinkSync(filePath);
                 return res.status(500).json({
                     success: false,
                     error: 'Failed to send guide via WhatsApp'
