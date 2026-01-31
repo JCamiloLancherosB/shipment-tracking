@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import * as path from 'path';
 import * as fs from 'fs';
 import { GuideParser } from '../services/GuideParser';
@@ -10,6 +11,24 @@ import { WhatsAppSender } from '../services/WhatsAppSender';
 const upload = multer({ 
     dest: '/tmp/uploads/',
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Rate limiter for file upload endpoints
+const uploadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // Limit each IP to 20 requests per windowMs
+    message: 'Too many upload requests from this IP, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Rate limiter for test endpoints
+const testLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // Limit each IP to 50 requests per windowMs
+    message: 'Too many test requests from this IP, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 
 interface Services {
@@ -31,7 +50,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Manual guide upload and processing
-    app.post('/api/process-guide', upload.single('guide'), async (req: Request, res: Response) => {
+    app.post('/api/process-guide', uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
         try {
             if (!req.file) {
                 return res.status(400).json({ 
@@ -107,7 +126,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Test guide parsing only (no sending)
-    app.post('/api/test-parse', upload.single('guide'), async (req: Request, res: Response) => {
+    app.post('/api/test-parse', uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
         try {
             if (!req.file) {
                 return res.status(400).json({ 
@@ -146,7 +165,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Test customer matching
-    app.post('/api/test-match', async (req: Request, res: Response) => {
+    app.post('/api/test-match', testLimiter, async (req: Request, res: Response) => {
         try {
             const { customerName, customerPhone, shippingAddress, city } = req.body;
 
