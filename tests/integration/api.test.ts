@@ -431,6 +431,7 @@ describe('API Routes Integration Tests', () => {
         error: 'Not found',
         availableEndpoints: [
           'GET /health',
+          'GET /health/techaura',
           'POST /api/process-guide',
           'POST /api/test-parse',
           'POST /api/test-match'

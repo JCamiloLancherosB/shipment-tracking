@@ -40,13 +40,48 @@ interface Services {
 export function setupRoutes(app: express.Application, services: Services): void {
     app.use(express.json());
 
-    // Health check
+    // Basic health check
     app.get('/health', (req: Request, res: Response) => {
         res.json({ 
             status: 'ok', 
             service: 'shipment-tracking',
             timestamp: new Date().toISOString()
         });
+    });
+
+    // Extended health check that verifies TechAura API connection
+    app.get('/health/techaura', async (req: Request, res: Response) => {
+        try {
+            const healthResult = await services.sender.checkHealth();
+            
+            const statusCode = healthResult.healthy ? 200 : 503;
+            
+            return res.status(statusCode).json({
+                status: healthResult.healthy ? 'ok' : 'degraded',
+                service: 'shipment-tracking',
+                timestamp: new Date().toISOString(),
+                dependencies: {
+                    techAuraApi: {
+                        healthy: healthResult.healthy,
+                        message: healthResult.message,
+                        circuitBreakerState: healthResult.circuitState,
+                        responseTimeMs: healthResult.responseTimeMs
+                    }
+                }
+            });
+        } catch (error: any) {
+            return res.status(503).json({
+                status: 'error',
+                service: 'shipment-tracking',
+                timestamp: new Date().toISOString(),
+                dependencies: {
+                    techAuraApi: {
+                        healthy: false,
+                        message: error.message || 'Unknown error checking TechAura API health'
+                    }
+                }
+            });
+        }
     });
 
     // Manual guide upload and processing
@@ -213,6 +248,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
             error: 'Not found',
             availableEndpoints: [
                 'GET /health',
+                'GET /health/techaura',
                 'POST /api/process-guide',
                 'POST /api/test-parse',
                 'POST /api/test-match'
