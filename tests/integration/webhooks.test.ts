@@ -211,6 +211,7 @@ describe('Webhooks API Tests', () => {
         });
 
         it('should handle optional fields being null or empty', async () => {
+            // When product_type and capacity are null, productDescription should just be 'USB'
             const minimalData = {
                 order_number: 'ORD-2024-001',
                 customer_name: null,
@@ -228,7 +229,7 @@ describe('Webhooks API Tests', () => {
                 customerPhone: minimalData.customer_phone,
                 shippingAddress: minimalData.shipping_address,
                 shippingPhone: minimalData.customer_phone,
-                productDescription: 'USB  -',
+                productDescription: 'USB',
                 status: 'ready_for_shipping',
                 createdAt: new Date(),
                 updatedAt: new Date()
@@ -242,6 +243,85 @@ describe('Webhooks API Tests', () => {
                 .expect(200);
 
             expect(response.body.success).toBe(true);
+            
+            // Verify the product description was built correctly
+            expect(mockCreateShipment).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    productDescription: 'USB'
+                })
+            );
+        });
+
+        it('should build product description correctly with only capacity', async () => {
+            const dataWithCapacityOnly = {
+                order_number: 'ORD-2024-001',
+                customer_phone: '3001234567',
+                shipping_address: 'Calle 45 # 23-67, Bogotá',
+                capacity: '16GB'
+            };
+
+            const mockShipment = {
+                id: 1,
+                orderNumber: dataWithCapacityOnly.order_number,
+                trackingNumber: 'TA123ABC456DEF',
+                customerName: '',
+                customerPhone: dataWithCapacityOnly.customer_phone,
+                shippingAddress: dataWithCapacityOnly.shipping_address,
+                shippingPhone: dataWithCapacityOnly.customer_phone,
+                productDescription: 'USB 16GB',
+                status: 'ready_for_shipping',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            mockCreateShipment.mockResolvedValue(mockShipment);
+
+            await request(app)
+                .post('/webhooks/order-completed')
+                .send(dataWithCapacityOnly)
+                .expect(200);
+            
+            expect(mockCreateShipment).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    productDescription: 'USB 16GB'
+                })
+            );
+        });
+
+        it('should build product description correctly with only product_type', async () => {
+            const dataWithProductTypeOnly = {
+                order_number: 'ORD-2024-001',
+                customer_phone: '3001234567',
+                shipping_address: 'Calle 45 # 23-67, Bogotá',
+                product_type: 'Custom Design'
+            };
+
+            const mockShipment = {
+                id: 1,
+                orderNumber: dataWithProductTypeOnly.order_number,
+                trackingNumber: 'TA123ABC456DEF',
+                customerName: '',
+                customerPhone: dataWithProductTypeOnly.customer_phone,
+                shippingAddress: dataWithProductTypeOnly.shipping_address,
+                shippingPhone: dataWithProductTypeOnly.customer_phone,
+                productDescription: 'USB Custom Design',
+                status: 'ready_for_shipping',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            mockCreateShipment.mockResolvedValue(mockShipment);
+
+            await request(app)
+                .post('/webhooks/order-completed')
+                .send(dataWithProductTypeOnly)
+                .expect(200);
+            
+            expect(mockCreateShipment).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    productDescription: 'USB Custom Design'
+                })
+            );
         });
     });
 

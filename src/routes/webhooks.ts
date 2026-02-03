@@ -28,6 +28,12 @@ router.post('/order-completed', async (req: Request, res: Response) => {
             });
         }
 
+        // Build product description based on available data
+        const productParts = [capacity, product_type].filter(Boolean);
+        const productDescription = productParts.length > 0
+            ? `USB ${productParts.join(' - ')}`
+            : 'USB';
+
         // Create shipment record
         const shipment = await shipmentService.createShipment({
             orderNumber: order_number,
@@ -35,7 +41,7 @@ router.post('/order-completed', async (req: Request, res: Response) => {
             customerPhone: customer_phone,
             shippingAddress: shipping_address,
             shippingPhone: shipping_phone || customer_phone,
-            productDescription: `USB ${capacity || ''} - ${product_type || ''}`.trim(),
+            productDescription,
             status: 'ready_for_shipping'
         });
 
