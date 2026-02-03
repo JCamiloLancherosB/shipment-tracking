@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import { GuideParser } from '../services/GuideParser';
 import { CustomerMatcher } from '../services/CustomerMatcher';
 import { WhatsAppSender } from '../services/WhatsAppSender';
+import webhooksRouter from '../routes/webhooks';
 
 // Setup multer for file uploads
 const upload = multer({ 
@@ -39,6 +40,9 @@ interface Services {
 
 export function setupRoutes(app: express.Application, services: Services): void {
     app.use(express.json());
+
+    // Mount webhooks router
+    app.use('/webhooks', webhooksRouter);
 
     // Basic health check
     app.get('/health', (req: Request, res: Response) => {
@@ -251,7 +255,8 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 'GET /health/techaura',
                 'POST /api/process-guide',
                 'POST /api/test-parse',
-                'POST /api/test-match'
+                'POST /api/test-match',
+                'POST /webhooks/order-completed'
             ]
         });
     });
