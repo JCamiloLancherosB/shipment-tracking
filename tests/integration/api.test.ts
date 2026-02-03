@@ -12,6 +12,11 @@ import * as path from 'path';
 jest.mock('../../src/services/GuideParser');
 jest.mock('../../src/services/CustomerMatcher');
 jest.mock('../../src/services/WhatsAppSender');
+jest.mock('../../src/services/ShipmentService', () => ({
+  ShipmentService: jest.fn().mockImplementation(() => ({
+    createShipment: jest.fn()
+  }))
+}));
 
 describe('API Routes Integration Tests', () => {
   let app: express.Application;
@@ -434,7 +439,8 @@ describe('API Routes Integration Tests', () => {
           'GET /health/techaura',
           'POST /api/process-guide',
           'POST /api/test-parse',
-          'POST /api/test-match'
+          'POST /api/test-match',
+          'POST /webhooks/order-completed'
         ]
       });
     });

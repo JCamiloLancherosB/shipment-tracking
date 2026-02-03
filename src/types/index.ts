@@ -27,3 +27,27 @@ export interface ProcessResult {
     sentTo?: string;
     error?: string;
 }
+
+export interface CreateShipmentRequest {
+    orderNumber: string;
+    customerName: string;
+    customerPhone: string;
+    shippingAddress: string;
+    shippingPhone: string;
+    productDescription: string;
+    status: string;
+}
+
+export interface Shipment {
+    id: number;
+    orderNumber: string;
+    trackingNumber: string;
+    customerName: string;
+    customerPhone: string;
+    shippingAddress: string;
+    shippingPhone: string;
+    productDescription: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
