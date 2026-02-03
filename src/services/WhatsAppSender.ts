@@ -34,6 +34,13 @@ export interface StructuredLog {
     metadata?: Record<string, unknown>;
 }
 
+export interface HealthCheckResult {
+    healthy: boolean;
+    message: string;
+    circuitState: CircuitState;
+    responseTimeMs?: number;
+}
+
 export class WhatsAppSender {
     private apiUrl: string;
     private apiKey: string;
@@ -305,7 +312,7 @@ export class WhatsAppSender {
     /**
      * Check health of the TechAura API connection
      */
-    async checkHealth(): Promise<{ healthy: boolean; message: string; circuitState: CircuitState; responseTimeMs?: number }> {
+    async checkHealth(): Promise<HealthCheckResult> {
         const startTime = Date.now();
         
         try {
