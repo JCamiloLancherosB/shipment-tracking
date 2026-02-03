@@ -152,6 +152,7 @@ export class TechAuraIntegration {
         try {
             const response = await axios.post(
                 `${this.apiUrl}/api/shipping/request-missing-data`,
+                // API expects snake_case field names as per TechAura chatbot specification
                 { order_number: orderNumber, missing_fields: missingFields },
                 {
                     headers: {
