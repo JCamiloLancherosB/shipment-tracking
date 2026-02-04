@@ -256,7 +256,8 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 'POST /api/process-guide',
                 'POST /api/test-parse',
                 'POST /api/test-match',
-                'POST /webhooks/order-completed'
+                'POST /webhooks/order-completed',
+                'POST /webhooks/new-order'
             ]
         });
     });
