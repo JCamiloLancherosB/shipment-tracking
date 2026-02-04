@@ -440,7 +440,15 @@ describe('API Routes Integration Tests', () => {
           'POST /api/process-guide',
           'POST /api/test-parse',
           'POST /api/test-match',
-          'POST /webhooks/order-completed'
+          'POST /webhooks/order-completed',
+          'POST /webhooks/new-order',
+          'GET /api/tracking/:trackingNumber',
+          'POST /api/shipments',
+          'GET /api/shipments/:trackingNumber/label',
+          'DELETE /api/shipments/:trackingNumber',
+          'GET /api/carriers',
+          'GET /api/carriers/:carrierId',
+          'GET /api/carriers/quote'
         ]
       });
     });
