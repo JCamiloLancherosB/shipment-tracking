@@ -7,6 +7,7 @@ import { GuideParser } from '../services/GuideParser';
 import { CustomerMatcher } from '../services/CustomerMatcher';
 import { WhatsAppSender } from '../services/WhatsAppSender';
 import webhooksRouter from '../routes/webhooks';
+import carrierRoutes from './carrierRoutes';
 
 // Setup multer for file uploads
 const upload = multer({ 
@@ -43,6 +44,9 @@ export function setupRoutes(app: express.Application, services: Services): void 
 
     // Mount webhooks router
     app.use('/webhooks', webhooksRouter);
+
+    // Mount carrier routes for multi-carrier tracking
+    app.use('/api', carrierRoutes);
 
     // Basic health check
     app.get('/health', (req: Request, res: Response) => {
@@ -257,7 +261,14 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 'POST /api/test-parse',
                 'POST /api/test-match',
                 'POST /webhooks/order-completed',
-                'POST /webhooks/new-order'
+                'POST /webhooks/new-order',
+                'GET /api/tracking/:trackingNumber',
+                'POST /api/shipments',
+                'GET /api/shipments/:trackingNumber/label',
+                'DELETE /api/shipments/:trackingNumber',
+                'GET /api/carriers',
+                'GET /api/carriers/:carrierId',
+                'GET /api/carriers/quote'
             ]
         });
     });
