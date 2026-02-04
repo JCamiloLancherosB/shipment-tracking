@@ -2,6 +2,9 @@
  * Dashboard JavaScript functionality
  */
 
+// Configuration constants
+const TOAST_DISPLAY_DURATION = 5000; // Duration in milliseconds to show toast notifications
+
 document.addEventListener('DOMContentLoaded', function() {
     initDropZone();
     initUploadForm();
@@ -203,10 +206,10 @@ function showToast(message, type) {
     toast.textContent = message;
     document.body.appendChild(toast);
 
-    // Auto-remove after 5 seconds
+    // Auto-remove after display duration
     setTimeout(function() {
         toast.remove();
-    }, 5000);
+    }, TOAST_DISPLAY_DURATION);
 }
 
 // Pre-select order if specified in URL

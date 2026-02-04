@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && npm run copy-views",
-    "copy-views": "cp -r src/views dist/",
+    "copy-views": "copyfiles -u 1 \"src/views/**/*\" dist/",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "test": "jest",
@@ -34,6 +34,7 @@
     "@types/node": "^20.10.0",
     "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^6.0.3",
+    "copyfiles": "^2.4.1",
     "jest": "^30.2.0",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.6",
