@@ -391,6 +391,215 @@ describe('TechAuraIntegration', () => {
             });
         });
     });
+
+    describe('requestMissingDataStructured', () => {
+        it('should return true when structured request is successful', async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { success: true }
+            });
+
+            const request = {
+                orderNumber: 'ORD-001',
+                missingFields: [
+                    { field: 'address' as const, reason: 'Address is incomplete' },
+                    { field: 'city' as const, reason: 'City is required for shipping' }
+                ],
+                urgency: 'high' as const,
+                deadline: new Date('2024-01-20T12:00:00Z')
+            };
+
+            const result = await integration.requestMissingDataStructured(request);
+
+            expect(result).toBe(true);
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'http://localhost:9999/api/shipping/request-data',
+                {
+                    order_number: 'ORD-001',
+                    missing_fields: [
+                        { field: 'address', reason: 'Address is incomplete' },
+                        { field: 'city', reason: 'City is required for shipping' }
+                    ],
+                    urgency: 'high',
+                    deadline: '2024-01-20T12:00:00.000Z'
+                },
+                expect.objectContaining({
+                    headers: expect.objectContaining({
+                        'X-API-Key': 'test-api-key',
+                        'Content-Type': 'application/json'
+                    }),
+                    timeout: 10000
+                })
+            );
+        });
+
+        it('should return false when structured request fails', async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { success: false, error: 'Order not found' }
+            });
+
+            const request = {
+                orderNumber: 'ORD-INVALID',
+                missingFields: [{ field: 'phone' as const, reason: 'Phone is missing' }],
+                urgency: 'low' as const
+            };
+
+            const result = await integration.requestMissingDataStructured(request);
+
+            expect(result).toBe(false);
+        });
+
+        it('should return false on API error', async () => {
+            mockedAxios.post.mockRejectedValue(new Error('Network error'));
+
+            const request = {
+                orderNumber: 'ORD-001',
+                missingFields: [{ field: 'city' as const, reason: 'City required' }],
+                urgency: 'medium' as const
+            };
+
+            const result = await integration.requestMissingDataStructured(request);
+
+            expect(result).toBe(false);
+        });
+
+        it('should handle request without deadline', async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { success: true }
+            });
+
+            const request = {
+                orderNumber: 'ORD-001',
+                missingFields: [{ field: 'name' as const, reason: 'Name missing' }],
+                urgency: 'low' as const
+            };
+
+            const result = await integration.requestMissingDataStructured(request);
+
+            expect(result).toBe(true);
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    deadline: undefined
+                }),
+                expect.any(Object)
+            );
+        });
+    });
+
+    describe('updateShippingStatus', () => {
+        it('should return true when status update is successful', async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { success: true }
+            });
+
+            const update = {
+                orderNumber: 'ORD-001',
+                status: 'in_transit' as const,
+                trackingNumber: 'TA123456789',
+                carrier: 'Servientrega',
+                estimatedDelivery: new Date('2024-01-25T14:00:00Z'),
+                notes: 'Package picked up from warehouse'
+            };
+
+            const result = await integration.updateShippingStatus(update);
+
+            expect(result).toBe(true);
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'http://localhost:9999/api/shipping/status-update',
+                {
+                    order_number: 'ORD-001',
+                    status: 'in_transit',
+                    tracking_number: 'TA123456789',
+                    carrier: 'Servientrega',
+                    estimated_delivery: '2024-01-25T14:00:00.000Z',
+                    notes: 'Package picked up from warehouse'
+                },
+                expect.objectContaining({
+                    headers: expect.objectContaining({
+                        'X-API-Key': 'test-api-key',
+                        'Content-Type': 'application/json'
+                    }),
+                    timeout: 10000
+                })
+            );
+        });
+
+        it('should return false when status update fails', async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { success: false, error: 'Order not found' }
+            });
+
+            const update = {
+                orderNumber: 'ORD-INVALID',
+                status: 'delivered' as const
+            };
+
+            const result = await integration.updateShippingStatus(update);
+
+            expect(result).toBe(false);
+        });
+
+        it('should return false on API error', async () => {
+            mockedAxios.post.mockRejectedValue(new Error('Network error'));
+
+            const update = {
+                orderNumber: 'ORD-001',
+                status: 'picked_up' as const
+            };
+
+            const result = await integration.updateShippingStatus(update);
+
+            expect(result).toBe(false);
+        });
+
+        it('should handle minimal update (only required fields)', async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { success: true }
+            });
+
+            const update = {
+                orderNumber: 'ORD-001',
+                status: 'label_created' as const
+            };
+
+            const result = await integration.updateShippingStatus(update);
+
+            expect(result).toBe(true);
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    order_number: 'ORD-001',
+                    status: 'label_created',
+                    tracking_number: undefined,
+                    carrier: undefined,
+                    estimated_delivery: undefined,
+                    notes: undefined
+                }),
+                expect.any(Object)
+            );
+        });
+
+        it('should handle all status values', async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { success: true }
+            });
+
+            const statuses: Array<'label_created' | 'picked_up' | 'in_transit' | 'delivered' | 'returned'> = [
+                'label_created', 'picked_up', 'in_transit', 'delivered', 'returned'
+            ];
+
+            for (const status of statuses) {
+                const result = await integration.updateShippingStatus({
+                    orderNumber: 'ORD-001',
+                    status
+                });
+
+                expect(result).toBe(true);
+            }
+
+            expect(mockedAxios.post).toHaveBeenCalledTimes(statuses.length);
+        });
+    });
 });
 
 describe('techAuraIntegration singleton', () => {
