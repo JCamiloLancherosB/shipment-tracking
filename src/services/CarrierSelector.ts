@@ -15,7 +15,7 @@ import {
     EnviaCarrier,
     CoordinadoraCarrier,
     TCCCarrier,
-    DepriseCarrier
+    DeprisaCarrier
 } from '../carriers/implementations';
 
 interface QuoteWithCarrier {
@@ -44,7 +44,7 @@ export class CarrierSelector {
             new EnviaCarrier(),
             new CoordinadoraCarrier(),
             new TCCCarrier(),
-            new DepriseCarrier()
+            new DeprisaCarrier()
         ];
 
         for (const carrier of carrierInstances) {

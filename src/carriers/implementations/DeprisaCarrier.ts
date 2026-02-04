@@ -1,5 +1,5 @@
 /**
- * Deprise Carrier Implementation
+ * Deprisa Carrier Implementation
  * Colombian carrier
  */
 
@@ -12,10 +12,10 @@ import {
     ShipmentStatus
 } from '../types';
 
-export class DepriseCarrier extends BaseCarrier {
-    id = 'deprise';
+export class DeprisaCarrier extends BaseCarrier {
+    id = 'deprisa';
     name = 'Deprisa';
-    logo = '/images/carriers/deprise.png';
+    logo = '/images/carriers/deprisa.png';
     pricePerKg = 8200; // COP per kg
     hasPickup = true;
 

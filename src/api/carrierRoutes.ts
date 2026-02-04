@@ -18,7 +18,7 @@ const TRACKING_PATTERNS: Array<{ pattern: RegExp; carrierId: string }> = [
     { pattern: /^ENV\d{8,}/i, carrierId: 'envia' },
     { pattern: /^CD\d{8,}/i, carrierId: 'coordinadora' },
     { pattern: /^TCC\d{8,}/i, carrierId: 'tcc' },
-    { pattern: /^DPR\d{8,}/i, carrierId: 'deprise' },
+    { pattern: /^DPR\d{8,}/i, carrierId: 'deprisa' },
 ];
 
 /**

@@ -23,7 +23,7 @@ describe('CarrierSelector', () => {
                     'envia',
                     'coordinadora',
                     'tcc',
-                    'deprise'
+                    'deprisa'
                 ])
             );
         });

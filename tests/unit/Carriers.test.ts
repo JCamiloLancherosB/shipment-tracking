@@ -7,7 +7,7 @@ import { ServientregaCarrier } from '../../src/carriers/implementations/Servient
 import { EnviaCarrier } from '../../src/carriers/implementations/EnviaCarrier';
 import { CoordinadoraCarrier } from '../../src/carriers/implementations/CoordinadoraCarrier';
 import { TCCCarrier } from '../../src/carriers/implementations/TCCCarrier';
-import { DepriseCarrier } from '../../src/carriers/implementations/DepriseCarrier';
+import { DeprisaCarrier } from '../../src/carriers/implementations/DeprisaCarrier';
 import { ShipmentData, RecipientData } from '../../src/carriers/types';
 
 describe('Carrier Implementations', () => {
@@ -155,15 +155,15 @@ describe('Carrier Implementations', () => {
         });
     });
 
-    describe('DepriseCarrier', () => {
-        let carrier: DepriseCarrier;
+    describe('DeprisaCarrier', () => {
+        let carrier: DeprisaCarrier;
 
         beforeEach(() => {
-            carrier = new DepriseCarrier();
+            carrier = new DeprisaCarrier();
         });
 
         it('should have correct carrier properties', () => {
-            expect(carrier.id).toBe('deprise');
+            expect(carrier.id).toBe('deprisa');
             expect(carrier.name).toBe('Deprisa');
         });
 
@@ -181,7 +181,7 @@ describe('Carrier Implementations', () => {
             new EnviaCarrier(),
             new CoordinadoraCarrier(),
             new TCCCarrier(),
-            new DepriseCarrier()
+            new DeprisaCarrier()
         ];
 
         test.each(carriers.map(c => [c.name, c]))(

@@ -7,4 +7,4 @@ export { ServientregaCarrier } from './ServientregaCarrier';
 export { EnviaCarrier } from './EnviaCarrier';
 export { CoordinadoraCarrier } from './CoordinadoraCarrier';
 export { TCCCarrier } from './TCCCarrier';
-export { DepriseCarrier } from './DepriseCarrier';
+export { DeprisaCarrier } from './DeprisaCarrier';
