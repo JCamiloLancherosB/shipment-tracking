@@ -10,6 +10,15 @@ jest.mock('../../src/services/ShipmentService', () => ({
     }))
 }));
 
+// Mock websocket module
+const mockAddToOrderQueue = jest.fn();
+const mockNotifyNewOrder = jest.fn();
+
+jest.mock('../../src/websocket', () => ({
+    addToOrderQueue: mockAddToOrderQueue,
+    notifyNewOrder: mockNotifyNewOrder
+}));
+
 // Now import the modules that use ShipmentService
 import { setupRoutes } from '../../src/api/routes';
 import { GuideParser } from '../../src/services/GuideParser';
@@ -332,6 +341,154 @@ describe('Webhooks API Tests', () => {
                 .expect(404);
 
             expect(response.body.availableEndpoints).toContain('POST /webhooks/order-completed');
+        });
+
+        it('should include new-order webhook endpoint in available endpoints list', async () => {
+            const response = await request(app)
+                .get('/unknown-route')
+                .expect(404);
+
+            expect(response.body.availableEndpoints).toContain('POST /webhooks/new-order');
+        });
+    });
+
+    describe('POST /webhooks/new-order', () => {
+        const validNewOrderData = {
+            event: 'order_ready_for_shipping',
+            order_number: 'ORD-2024-002',
+            customer_name: 'María García',
+            customer_phone: '3009876543',
+            shipping_address: 'Carrera 7 # 100-25, Medellín',
+            city: 'Medellín',
+            product_description: 'USB 32GB Custom',
+            created_at: '2024-01-15T10:30:00Z'
+        };
+
+        beforeEach(() => {
+            mockAddToOrderQueue.mockClear();
+            mockNotifyNewOrder.mockClear();
+        });
+
+        it('should process new order webhook successfully', async () => {
+            const response = await request(app)
+                .post('/webhooks/new-order')
+                .send(validNewOrderData)
+                .expect(200);
+
+            expect(response.body).toEqual({
+                success: true,
+                message: 'Order queued for processing'
+            });
+        });
+
+        it('should add order to queue and notify via WebSocket', async () => {
+            await request(app)
+                .post('/webhooks/new-order')
+                .send(validNewOrderData)
+                .expect(200);
+
+            expect(mockAddToOrderQueue).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    orderNumber: validNewOrderData.order_number,
+                    customerName: validNewOrderData.customer_name,
+                    phone: validNewOrderData.customer_phone,
+                    address: validNewOrderData.shipping_address,
+                    city: validNewOrderData.city,
+                    product: validNewOrderData.product_description
+                })
+            );
+
+            expect(mockNotifyNewOrder).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    orderNumber: validNewOrderData.order_number
+                })
+            );
+        });
+
+        it('should return 400 when order_number is missing', async () => {
+            const invalidData = {
+                event: 'order_ready_for_shipping',
+                customer_name: 'María García',
+                customer_phone: '3009876543'
+            };
+
+            const response = await request(app)
+                .post('/webhooks/new-order')
+                .send(invalidData)
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.error).toBe('Missing required field: order_number');
+        });
+
+        it('should return 401 when API key is invalid and WEBHOOK_SECRET is set', async () => {
+            // Save original env
+            const originalSecret = process.env.WEBHOOK_SECRET;
+            process.env.WEBHOOK_SECRET = 'test-secret-key';
+
+            try {
+                const response = await request(app)
+                    .post('/webhooks/new-order')
+                    .set('x-api-key', 'wrong-key')
+                    .send(validNewOrderData)
+                    .expect(401);
+
+                expect(response.body.error).toBe('Unauthorized');
+            } finally {
+                // Restore original env (properly handle undefined)
+                if (originalSecret === undefined) {
+                    delete process.env.WEBHOOK_SECRET;
+                } else {
+                    process.env.WEBHOOK_SECRET = originalSecret;
+                }
+            }
+        });
+
+        it('should accept request with correct API key when WEBHOOK_SECRET is set', async () => {
+            // Save original env
+            const originalSecret = process.env.WEBHOOK_SECRET;
+            process.env.WEBHOOK_SECRET = 'test-secret-key';
+
+            try {
+                const response = await request(app)
+                    .post('/webhooks/new-order')
+                    .set('x-api-key', 'test-secret-key')
+                    .send(validNewOrderData)
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+            } finally {
+                // Restore original env (properly handle undefined)
+                if (originalSecret === undefined) {
+                    delete process.env.WEBHOOK_SECRET;
+                } else {
+                    process.env.WEBHOOK_SECRET = originalSecret;
+                }
+            }
+        });
+
+        it('should handle missing optional fields gracefully', async () => {
+            const minimalData = {
+                event: 'order_ready_for_shipping',
+                order_number: 'ORD-2024-003'
+            };
+
+            const response = await request(app)
+                .post('/webhooks/new-order')
+                .send(minimalData)
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(mockAddToOrderQueue).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    orderNumber: 'ORD-2024-003',
+                    customerName: '',
+                    phone: '',
+                    address: '',
+                    city: '',
+                    product: ''
+                })
+            );
         });
     });
 });

@@ -1,5 +1,6 @@
 import express from 'express';
 import * as path from 'path';
+import { createServer } from 'http';
 import { config } from './config/config';
 import { FolderWatcher } from './watchers/FolderWatcher';
 import { GuideParser } from './services/GuideParser';
@@ -7,6 +8,7 @@ import { CustomerMatcher } from './services/CustomerMatcher';
 import { WhatsAppSender } from './services/WhatsAppSender';
 import { setupRoutes } from './api/routes';
 import { createViewRouter } from './api/viewRoutes';
+import { setupWebSocket } from './websocket';
 
 class ShipmentTrackingApp {
     private app: express.Application;
@@ -100,15 +102,22 @@ class ShipmentTrackingApp {
         // Start folder watcher
         this.watcher.start();
         
-        // Start HTTP server
+        // Create HTTP server and setup WebSocket
         const port = config.port || 3010;
-        this.app.listen(port, () => {
+        const httpServer = createServer(this.app);
+        
+        // Setup WebSocket for real-time notifications
+        setupWebSocket(httpServer);
+        
+        // Start HTTP server with WebSocket support
+        httpServer.listen(port, () => {
             console.log(`
 🚚 Shipment Tracking System Started
 ===================================
 📂 Watching folder: ${config.watchFolder}
 🌐 API available at: http://localhost:${port}
 🖥️  Dashboard at: http://localhost:${port}/dashboard
+📡 WebSocket available at: ws://localhost:${port}
 🔗 Connected to TechAura DB: ${config.techauraDb.host}
             `);
         });

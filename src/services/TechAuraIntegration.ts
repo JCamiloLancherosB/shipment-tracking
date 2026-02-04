@@ -51,6 +51,36 @@ export interface GuideCreatedNotification {
 }
 
 /**
+ * Interface for missing field specification
+ */
+export interface MissingFieldSpec {
+    field: 'name' | 'phone' | 'address' | 'city' | 'department';
+    reason: string;
+}
+
+/**
+ * Interface for structured missing data request
+ */
+export interface MissingDataRequest {
+    orderNumber: string;
+    missingFields: MissingFieldSpec[];
+    urgency: 'low' | 'medium' | 'high';
+    deadline?: Date;
+}
+
+/**
+ * Interface for shipping status update
+ */
+export interface ShippingStatusUpdate {
+    orderNumber: string;
+    status: 'label_created' | 'picked_up' | 'in_transit' | 'delivered' | 'returned';
+    trackingNumber?: string;
+    carrier?: string;
+    estimatedDelivery?: Date;
+    notes?: string;
+}
+
+/**
  * Service for integrating with the TechAura chatbot API
  * Handles communication for order retrieval and shipping notifications
  */
@@ -166,6 +196,75 @@ export class TechAuraIntegration {
             return response.data.success;
         } catch (error) {
             console.error('Error requesting missing data:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Request missing data from customer via the chatbot with structured request
+     * Sends a WhatsApp message asking for the specified missing fields with reasons
+     * @param request - Structured missing data request
+     * @returns true if the request was sent successfully
+     */
+    async requestMissingDataStructured(request: MissingDataRequest): Promise<boolean> {
+        try {
+            const response = await axios.post(
+                `${this.apiUrl}/api/shipping/request-data`,
+                {
+                    order_number: request.orderNumber,
+                    missing_fields: request.missingFields.map(f => ({
+                        field: f.field,
+                        reason: f.reason
+                    })),
+                    urgency: request.urgency,
+                    deadline: request.deadline?.toISOString()
+                },
+                {
+                    headers: {
+                        'X-API-Key': this.apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                }
+            );
+
+            return response.data.success;
+        } catch (error) {
+            console.error('Error requesting missing data (structured):', error);
+            return false;
+        }
+    }
+
+    /**
+     * Update shipping status in the chatbot
+     * This triggers a WhatsApp notification to the customer
+     * @param update - Shipping status update data
+     * @returns true if the update was successful
+     */
+    async updateShippingStatus(update: ShippingStatusUpdate): Promise<boolean> {
+        try {
+            const response = await axios.post(
+                `${this.apiUrl}/api/shipping/status-update`,
+                {
+                    order_number: update.orderNumber,
+                    status: update.status,
+                    tracking_number: update.trackingNumber,
+                    carrier: update.carrier,
+                    estimated_delivery: update.estimatedDelivery?.toISOString(),
+                    notes: update.notes
+                },
+                {
+                    headers: {
+                        'X-API-Key': this.apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                }
+            );
+
+            return response.data.success;
+        } catch (error) {
+            console.error('Error updating shipping status:', error);
             return false;
         }
     }
