@@ -1,10 +1,12 @@
 import express from 'express';
+import * as path from 'path';
 import { config } from './config/config';
 import { FolderWatcher } from './watchers/FolderWatcher';
 import { GuideParser } from './services/GuideParser';
 import { CustomerMatcher } from './services/CustomerMatcher';
 import { WhatsAppSender } from './services/WhatsAppSender';
 import { setupRoutes } from './api/routes';
+import { createViewRouter } from './api/viewRoutes';
 
 class ShipmentTrackingApp {
     private app: express.Application;
@@ -75,7 +77,20 @@ class ShipmentTrackingApp {
     }
 
     async start(): Promise<void> {
-        // Setup Express routes
+        // Configure EJS as template engine
+        this.app.set('view engine', 'ejs');
+        this.app.set('views', path.join(__dirname, 'views'));
+        
+        // Serve static files from public folder
+        // In dev mode (tsx), __dirname is src/, in prod mode it's dist/
+        // public folder is at the project root level
+        const publicPath = path.join(__dirname, '..', 'public');
+        this.app.use(express.static(publicPath));
+        
+        // Setup view routes (must be before API routes to avoid 404 handler)
+        this.app.use(createViewRouter());
+        
+        // Setup Express API routes
         setupRoutes(this.app, {
             parser: this.parser,
             matcher: this.matcher,
@@ -93,6 +108,7 @@ class ShipmentTrackingApp {
 ===================================
 📂 Watching folder: ${config.watchFolder}
 🌐 API available at: http://localhost:${port}
+🖥️  Dashboard at: http://localhost:${port}/dashboard
 🔗 Connected to TechAura DB: ${config.techauraDb.host}
             `);
         });

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | TechAura Shipments</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<%- include('partials/header') %>
+
+<div class="app-container">
+    <%- include('partials/sidebar', { currentPage: 'dashboard' }) %>
+    
+    <main class="main-content">
+        <div class="dashboard">
+            <h1>📊 Dashboard</h1>
+            
+            <div class="stats-row">
+                <div class="stat-card">
+                    <h3>📦 Pedidos pendientes</h3>
+                    <span class="number"><%= stats.pending %></span>
+                </div>
+                <div class="stat-card">
+                    <h3>📬 Guías enviadas hoy</h3>
+                    <span class="number"><%= stats.sentToday %></span>
+                </div>
+                <div class="stat-card">
+                    <h3>❌ Errores de envío</h3>
+                    <span class="number error"><%= stats.errors %></span>
+                </div>
+            </div>
+            
+            <div class="recent-section">
+                <h2>Últimos pedidos</h2>
+                <% if (orders && orders.length > 0) { %>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th>Ciudad</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% orders.forEach(function(order) { %>
+                        <tr>
+                            <td><%= order.orderNumber %></td>
+                            <td><%= order.customerName %></td>
+                            <td><%= order.city || 'N/A' %></td>
+                            <td><span class="badge <%= order.status %>"><%= order.status %></span></td>
+                            <td class="actions-cell">
+                                <a href="/orders/<%= order.orderNumber %>" class="btn btn-sm">Ver</a>
+                                <button onclick="uploadGuide('<%= order.orderNumber %>')" class="btn btn-primary btn-sm">
+                                    Subir guía
+                                </button>
+                            </td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+                <% } else { %>
+                <p class="empty-state">No hay pedidos pendientes</p>
+                <% } %>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

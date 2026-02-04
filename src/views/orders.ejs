@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos | TechAura Shipments</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<%- include('partials/header') %>
+
+<div class="app-container">
+    <%- include('partials/sidebar', { currentPage: 'orders' }) %>
+    
+    <main class="main-content">
+        <div class="orders-page">
+            <div class="page-header">
+                <h1>📦 Pedidos Pendientes</h1>
+                <a href="/upload" class="btn btn-primary">+ Subir Guía</a>
+            </div>
+            
+            <% if (orders && orders.length > 0) { %>
+            <div class="orders-grid">
+                <% orders.forEach(function(order) { %>
+                <div class="order-card">
+                    <div class="order-card-header">
+                        <span class="order-number"><%= order.orderNumber %></span>
+                        <span class="badge <%= order.status %>"><%= order.status %></span>
+                    </div>
+                    <div class="order-card-body">
+                        <p><strong>👤 Cliente:</strong> <%= order.customerName %></p>
+                        <p><strong>📱 Teléfono:</strong> <%= order.customerPhone || 'N/A' %></p>
+                        <p><strong>📍 Ciudad:</strong> <%= order.city || 'N/A' %></p>
+                        <p><strong>🏠 Dirección:</strong> <%= order.shippingAddress || 'N/A' %></p>
+                    </div>
+                    <div class="order-card-actions">
+                        <a href="/orders/<%= order.orderNumber %>" class="btn btn-sm">Ver detalle</a>
+                        <button onclick="uploadGuide('<%= order.orderNumber %>')" class="btn btn-primary btn-sm">
+                            Subir guía
+                        </button>
+                    </div>
+                </div>
+                <% }); %>
+            </div>
+            <% } else { %>
+            <div class="empty-state-container">
+                <p class="empty-state">📭 No hay pedidos pendientes de envío</p>
+                <p>Los pedidos aparecerán aquí cuando estén listos para generar guías.</p>
+            </div>
+            <% } %>
+        </div>
+    </main>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

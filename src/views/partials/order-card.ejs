@@ -1,0 +1,17 @@
+<div class="order-card">
+    <div class="order-card-header">
+        <span class="order-number"><%= order.orderNumber %></span>
+        <span class="badge <%= order.status %>"><%= order.status %></span>
+    </div>
+    <div class="order-card-body">
+        <p><strong>👤</strong> <%= order.customerName %></p>
+        <p><strong>📍</strong> <%= order.city || 'N/A' %></p>
+        <p><strong>📦</strong> <%= order.productDescription || 'Sin descripción' %></p>
+    </div>
+    <div class="order-card-actions">
+        <a href="/orders/<%= order.orderNumber %>" class="btn btn-sm">Ver detalle</a>
+        <button onclick="uploadGuide('<%= order.orderNumber %>')" class="btn btn-primary btn-sm">
+            Subir guía
+        </button>
+    </div>
+</div>
