@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Pedido | TechAura Shipments</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<%- include('partials/header') %>
+
+<div class="app-container">
+    <%- include('partials/sidebar', { currentPage: 'orders' }) %>
+    
+    <main class="main-content">
+        <% if (typeof error !== 'undefined' && error) { %>
+        <div class="order-detail">
+            <div class="page-header">
+                <a href="/orders" class="btn btn-back">← Volver</a>
+            </div>
+            <div class="alert alert-error">
+                <%= error %>
+            </div>
+        </div>
+        <% } else if (!order) { %>
+        <div class="order-detail">
+            <div class="page-header">
+                <a href="/orders" class="btn btn-back">← Volver</a>
+            </div>
+            <div class="empty-state-container">
+                <p class="empty-state">📭 Pedido no encontrado</p>
+                <p>El pedido especificado no existe o ha sido eliminado.</p>
+            </div>
+        </div>
+        <% } else { %>
+        <div class="order-detail">
+            <div class="page-header">
+                <a href="/orders" class="btn btn-back">← Volver</a>
+            </div>
+            
+            <div class="order-header">
+                <h1>Pedido <%= order.orderNumber %></h1>
+                <span class="badge <%= order.status %>"><%= order.status %></span>
+            </div>
+            
+            <div class="order-info">
+                <div class="info-card">
+                    <h3>👤 Cliente</h3>
+                    <p><strong>Nombre:</strong> <%= order.customerName %></p>
+                    <p><strong>Teléfono:</strong> <%= order.customerPhone || 'N/A' %></p>
+                </div>
+                
+                <div class="info-card">
+                    <h3>📍 Envío</h3>
+                    <p><strong>Dirección:</strong> <%= order.shippingAddress || 'N/A' %></p>
+                    <p><strong>Ciudad:</strong> <%= order.city || 'N/A' %></p>
+                    <% if (order.department) { %>
+                    <p><strong>Departamento:</strong> <%= order.department %></p>
+                    <% } %>
+                </div>
+                
+                <div class="info-card">
+                    <h3>📦 Producto</h3>
+                    <p><strong>Descripción:</strong> <%= order.productDescription || 'Sin descripción' %></p>
+                    <% if (order.notes) { %>
+                    <p><strong>Notas:</strong> <%= order.notes %></p>
+                    <% } %>
+                </div>
+            </div>
+            
+            <div class="timeline">
+                <h3>📋 Historial</h3>
+                <% if (tracking && tracking.length > 0) { %>
+                <div class="timeline-events">
+                    <% tracking.forEach(function(event) { %>
+                    <div class="timeline-event">
+                        <span class="time"><%= new Date(event.timestamp).toLocaleString('es-CO') %></span>
+                        <span class="action"><%= event.action %></span>
+                        <span class="details"><%= event.details || '' %></span>
+                    </div>
+                    <% }); %>
+                </div>
+                <% } else { %>
+                <p class="empty-state">No hay historial de tracking disponible</p>
+                <% } %>
+            </div>
+            
+            <div class="actions">
+                <button onclick="resendNotification('<%= order.orderNumber %>')" class="btn">
+                    🔄 Reenviar notificación
+                </button>
+                <button onclick="requestMissingData('<%= order.orderNumber %>')" class="btn">
+                    📝 Solicitar datos faltantes
+                </button>
+                <button onclick="uploadGuide('<%= order.orderNumber %>')" class="btn btn-primary">
+                    📤 Subir guía
+                </button>
+            </div>
+        </div>
+        <% } %>
+    </main>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

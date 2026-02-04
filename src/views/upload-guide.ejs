@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subir Guía | TechAura Shipments</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<%- include('partials/header') %>
+
+<div class="app-container">
+    <%- include('partials/sidebar', { currentPage: 'upload' }) %>
+    
+    <main class="main-content">
+        <div class="upload-section">
+            <h1>📤 Subir Guía de Envío</h1>
+            
+            <% if (typeof message !== 'undefined' && message) { %>
+            <div class="alert <%= typeof success !== 'undefined' && success ? 'alert-success' : 'alert-error' %>">
+                <%= message %>
+            </div>
+            <% } %>
+            
+            <form action="/api/process-guide" method="POST" enctype="multipart/form-data" id="uploadForm">
+                <div class="form-group">
+                    <label for="orderNumber">Pedido asociado (opcional):</label>
+                    <select name="orderNumber" id="orderNumber">
+                        <option value="">-- Auto-detectar --</option>
+                        <% if (typeof orders !== 'undefined' && orders) { %>
+                            <% orders.forEach(function(o) { %>
+                            <option value="<%= o.orderNumber %>"><%= o.orderNumber %> - <%= o.customerName %></option>
+                            <% }); %>
+                        <% } %>
+                    </select>
+                </div>
+                
+                <div class="drop-zone" id="dropZone">
+                    <input type="file" name="guide" id="guideFile" accept=".pdf,.png,.jpg,.jpeg" required />
+                    <div class="drop-zone-content">
+                        <span class="drop-icon">📁</span>
+                        <p>Arrastra la guía aquí o haz clic para seleccionar</p>
+                        <p class="supported">Formatos: PDF, PNG, JPG</p>
+                    </div>
+                    <p class="file-name" id="fileName"></p>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                        Procesar y enviar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
