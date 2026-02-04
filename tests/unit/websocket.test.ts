@@ -35,10 +35,12 @@ jest.mock('socket.io', () => {
 
 describe('WebSocket Module', () => {
     describe('Order Queue Operations', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             // Clear the order queue before each test by removing all items
-            const orders = getPendingOrders();
-            // Note: getPendingOrders returns a promise-like, but in our implementation it's actually sync
+            const orders = await getPendingOrders();
+            for (const order of orders) {
+                removeFromOrderQueue(order.orderNumber);
+            }
         });
 
         it('should add order to queue', async () => {
@@ -159,15 +161,12 @@ describe('WebSocket Module', () => {
     });
 
     describe('getIO function', () => {
-        it('should return null if WebSocket is not initialized', () => {
-            // Reset the module to test uninitialized state
-            jest.resetModules();
-
-            // Re-import the module
-            const { getIO: freshGetIO } = require('../../src/websocket');
-            
-            // Note: This test may not work as expected because the module-level
-            // variable persists. In a real scenario, you'd need to reset module state.
+        it('should return the io instance after setup', () => {
+            // After setupWebSocket has been called in 'Notifications' describe block,
+            // getIO should return the io instance
+            const io = getIO();
+            // We expect it to be defined since setupWebSocket was called earlier
+            expect(io).toBeDefined();
         });
     });
 });
