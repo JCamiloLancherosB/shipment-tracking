@@ -6,7 +6,7 @@ import { FolderWatcher } from './watchers/FolderWatcher';
 import { GuideParser } from './services/GuideParser';
 import { CustomerMatcher } from './services/CustomerMatcher';
 import { WhatsAppSender } from './services/WhatsAppSender';
-import { setupRoutes, cleanupOldUploads } from './api/routes';
+import { setupRoutes, cleanupOldUploads, UPLOAD_MAX_AGE_MS } from './api/routes';
 import { createViewRouter } from './api/viewRoutes';
 import { setupWebSocket } from './websocket';
 
@@ -189,7 +189,7 @@ class ShipmentTrackingApp {
             cleanupOldUploads();
 
             // Periodic cleanup every hour
-            setInterval(() => cleanupOldUploads(), 60 * 60 * 1000);
+            setInterval(() => cleanupOldUploads(), UPLOAD_MAX_AGE_MS);
 
             // 3. THIRD: Initialize services in background (after port is open)
             this.initializeServices().then(() => {

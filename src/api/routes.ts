@@ -13,6 +13,9 @@ import carrierRoutes from './carrierRoutes';
 // Upload directory using OS-appropriate temp path
 export const UPLOAD_DIR = path.join(os.tmpdir(), 'shipment-tracking-uploads');
 
+// Max age for orphaned uploads (1 hour in milliseconds)
+export const UPLOAD_MAX_AGE_MS = 60 * 60 * 1000;
+
 // Allowed file extensions for uploads
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.bmp'];
 
@@ -30,7 +33,7 @@ const upload = multer({
  * Cleans up files older than the specified max age from the upload directory.
  * @param maxAgeMs Maximum file age in milliseconds (default: 1 hour)
  */
-export function cleanupOldUploads(maxAgeMs: number = 60 * 60 * 1000): void {
+export function cleanupOldUploads(maxAgeMs: number = UPLOAD_MAX_AGE_MS): void {
     try {
         if (!fs.existsSync(UPLOAD_DIR)) {
             return;
