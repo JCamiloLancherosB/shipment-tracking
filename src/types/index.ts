@@ -20,6 +20,11 @@ export interface CustomerMatch {
     matchedBy: 'phone' | 'name' | 'address';
 }
 
+export interface ICustomerMatcher {
+    findCustomer(guideData: ShippingGuideData): Promise<CustomerMatch | null>;
+    updateOrderTracking(orderNumber: string, trackingNumber: string, carrier: string): Promise<boolean>;
+}
+
 export interface ProcessResult {
     success: boolean;
     message: string;

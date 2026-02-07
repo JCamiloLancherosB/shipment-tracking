@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
 import * as path from 'path';
 import * as fs from 'fs';
 import { GuideParser } from '../services/GuideParser';
-import { CustomerMatcher } from '../services/CustomerMatcher';
+import { ICustomerMatcher } from '../types';
 import { WhatsAppSender } from '../services/WhatsAppSender';
 import webhooksRouter from '../routes/webhooks';
 import carrierRoutes from './carrierRoutes';
@@ -35,7 +35,7 @@ const testLimiter = rateLimit({
 
 interface Services {
     parser: GuideParser;
-    matcher: CustomerMatcher;
+    matcher: ICustomerMatcher;
     sender: WhatsAppSender;
 }
 
@@ -164,6 +164,13 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 fs.unlinkSync(req.file.path);
             }
 
+            if (error.message === 'Database not connected') {
+                return res.status(503).json({
+                    success: false,
+                    error: 'Database not connected yet'
+                });
+            }
+
             return res.status(500).json({ 
                 success: false, 
                 error: error.message || 'Internal server error'
@@ -246,6 +253,12 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 });
             }
         } catch (error: any) {
+            if (error.message === 'Database not connected') {
+                return res.status(503).json({
+                    success: false,
+                    error: 'Database not connected yet'
+                });
+            }
             return res.status(500).json({ 
                 success: false, 
                 error: error.message 

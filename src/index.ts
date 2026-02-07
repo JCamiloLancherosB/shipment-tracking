@@ -9,6 +9,7 @@ import { WhatsAppSender } from './services/WhatsAppSender';
 import { setupRoutes } from './api/routes';
 import { createViewRouter } from './api/viewRoutes';
 import { setupWebSocket } from './websocket';
+import { ShippingGuideData, CustomerMatch, ICustomerMatcher } from './types';
 
 // Global service state
 let serviceReady = false;
@@ -24,25 +25,39 @@ process.on('unhandledRejection', (reason) => {
     console.error('❌ Unhandled Rejection:', reason);
 });
 
+class MatcherProxy implements ICustomerMatcher {
+    private matcher: CustomerMatcher | null = null;
+
+    setMatcher(m: CustomerMatcher): void {
+        this.matcher = m;
+    }
+
+    async findCustomer(guideData: ShippingGuideData): Promise<CustomerMatch | null> {
+        if (!this.matcher) throw new Error('Database not connected');
+        return this.matcher.findCustomer(guideData);
+    }
+
+    async updateOrderTracking(orderNumber: string, trackingNumber: string, carrier: string): Promise<boolean> {
+        if (!this.matcher) throw new Error('Database not connected');
+        return this.matcher.updateOrderTracking(orderNumber, trackingNumber, carrier);
+    }
+}
+
 class ShipmentTrackingApp {
     private app: express.Application;
     private watcher: FolderWatcher | null = null;
     private parser: GuideParser;
-    private matcher: CustomerMatcher | null = null;
+    private matcherProxy: MatcherProxy;
     private sender: WhatsAppSender;
 
     constructor() {
         this.app = express();
         this.parser = new GuideParser();
+        this.matcherProxy = new MatcherProxy();
         this.sender = new WhatsAppSender(config.whatsapp);
     }
 
     async processGuide(filePath: string): Promise<void> {
-        if (!this.matcher) {
-            console.error('❌ Cannot process guide: database not connected');
-            return;
-        }
-
         console.log(`📄 Processing guide: ${filePath}`);
         
         try {
@@ -56,7 +71,7 @@ class ShipmentTrackingApp {
             console.log(`✅ Extracted data:`, guideData);
             
             // 2. Match customer in TechAura database
-            const customer = await this.matcher.findCustomer(guideData);
+            const customer = await this.matcherProxy.findCustomer(guideData);
             if (!customer) {
                 console.warn(`⚠️ No customer match found for guide: ${guideData.trackingNumber}`);
                 await this.logUnmatched(guideData);
@@ -88,8 +103,7 @@ class ShipmentTrackingApp {
     }
 
     private async updateOrderTracking(orderNumber: string, guideData: any): Promise<void> {
-        if (!this.matcher) return;
-        await this.matcher.updateOrderTracking(
+        await this.matcherProxy.updateOrderTracking(
             orderNumber, 
             guideData.trackingNumber, 
             guideData.carrier
@@ -99,22 +113,25 @@ class ShipmentTrackingApp {
     private async initializeServices(): Promise<void> {
         // Connect to database
         try {
-            this.matcher = new CustomerMatcher(config.techauraDb);
+            const matcher = new CustomerMatcher(config.techauraDb);
+            this.matcherProxy.setMatcher(matcher);
             dbConnected = true;
             console.log('✅ Database pool created');
         } catch (error) {
-            console.error('⚠️ Database connection failed:', (error as Error).message);
+            const errMsg = (error as Error).message;
+            console.error(`⚠️ Database connection failed (host: ${config.techauraDb.host}, port: ${config.techauraDb.port}, user: ${config.techauraDb.user}):`, errMsg);
             // Retry database connection every 30 seconds
             const retryInterval = setInterval(() => {
                 if (!dbConnected) {
                     try {
-                        this.matcher = new CustomerMatcher(config.techauraDb);
+                        const matcher = new CustomerMatcher(config.techauraDb);
+                        this.matcherProxy.setMatcher(matcher);
                         dbConnected = true;
                         serviceReady = true;
                         console.log('✅ Database reconnected');
                         clearInterval(retryInterval);
                     } catch (e) {
-                        console.error('⚠️ DB retry failed:', (e as Error).message);
+                        console.error(`⚠️ DB retry failed (host: ${config.techauraDb.host}, port: ${config.techauraDb.port}, user: ${config.techauraDb.user}):`, (e as Error).message);
                     }
                 }
             }, 30000);
@@ -170,10 +187,10 @@ class ShipmentTrackingApp {
         // Setup view routes (must be before API routes to avoid 404 handler)
         this.app.use(createViewRouter());
         
-        // Setup Express API routes (uses a placeholder matcher until DB connects)
+        // Setup Express API routes (matcher proxy handles DB not-ready state)
         setupRoutes(this.app, {
             parser: this.parser,
-            matcher: this.matcher as any,
+            matcher: this.matcherProxy,
             sender: this.sender
         });
         
