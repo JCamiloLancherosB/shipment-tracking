@@ -4,10 +4,11 @@ import rateLimit from 'express-rate-limit';
 import * as path from 'path';
 import * as fs from 'fs';
 import { GuideParser } from '../services/GuideParser';
-import { CustomerMatcher } from '../services/CustomerMatcher';
+import { ICustomerMatcher } from '../types';
 import { WhatsAppSender } from '../services/WhatsAppSender';
 import webhooksRouter from '../routes/webhooks';
 import carrierRoutes from './carrierRoutes';
+import { apiKeyAuth } from '../middleware/auth';
 
 // Setup multer for file uploads
 const upload = multer({ 
@@ -35,7 +36,7 @@ const testLimiter = rateLimit({
 
 interface Services {
     parser: GuideParser;
-    matcher: CustomerMatcher;
+    matcher: ICustomerMatcher;
     sender: WhatsAppSender;
 }
 
@@ -61,7 +62,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Extended health check that verifies TechAura API connection
-    app.get('/health/techaura', async (req: Request, res: Response) => {
+    app.get('/health/techaura', apiKeyAuth, async (req: Request, res: Response) => {
         try {
             const healthResult = await services.sender.checkHealth();
             
@@ -96,7 +97,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Manual guide upload and processing
-    app.post('/api/process-guide', uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
+    app.post('/api/process-guide', apiKeyAuth, uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
         try {
             if (!req.file) {
                 return res.status(400).json({ 
@@ -164,6 +165,13 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 fs.unlinkSync(req.file.path);
             }
 
+            if (error.message === 'Database not connected') {
+                return res.status(503).json({
+                    success: false,
+                    error: 'Database not connected yet'
+                });
+            }
+
             return res.status(500).json({ 
                 success: false, 
                 error: error.message || 'Internal server error'
@@ -172,7 +180,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Test guide parsing only (no sending)
-    app.post('/api/test-parse', uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
+    app.post('/api/test-parse', apiKeyAuth, uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
         try {
             if (!req.file) {
                 return res.status(400).json({ 
@@ -211,7 +219,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Test customer matching
-    app.post('/api/test-match', testLimiter, async (req: Request, res: Response) => {
+    app.post('/api/test-match', apiKeyAuth, testLimiter, async (req: Request, res: Response) => {
         try {
             const { customerName, customerPhone, shippingAddress, city } = req.body;
 
@@ -246,6 +254,12 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 });
             }
         } catch (error: any) {
+            if (error.message === 'Database not connected') {
+                return res.status(503).json({
+                    success: false,
+                    error: 'Database not connected yet'
+                });
+            }
             return res.status(500).json({ 
                 success: false, 
                 error: error.message 

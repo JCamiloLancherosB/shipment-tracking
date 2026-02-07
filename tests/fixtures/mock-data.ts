@@ -123,9 +123,9 @@ export const mockParsedGuideData = {
   customerName: 'Juan Carlos Pérez',
   customerPhone: '573001234567',
   shippingAddress: 'Calle 45 # 23-67',
-  city: 'Bogota',
+  city: 'Bogotá',
   carrier: 'Servientrega',
-  rawText: mockGuideTexts.servientrega.substring(0, 500)
+  rawText: mockGuideTexts.servientrega.substring(0, 1000)
 };
 
 export const mockCustomerMatch = {

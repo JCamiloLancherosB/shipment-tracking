@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ShippingGuideData } from '../types';
+import colombianCities from '../data/colombian-cities.json';
 
 export class GuideParser {
     private pdfParse: any = null;
@@ -115,26 +116,29 @@ export class GuideParser {
             data.shippingAddress = addressMatch[1].trim();
         }
 
-        // City (Colombian cities)
-        const cities = ['bogota', 'medellin', 'cali', 'barranquilla', 'cartagena', 'bucaramanga', 'pereira'];
-        const textLower = text.toLowerCase();
-        for (const city of cities) {
-            if (textLower.includes(city)) {
-                data.city = city.charAt(0).toUpperCase() + city.slice(1);
+        // City (Colombian cities) - with accent normalization
+        const normalizeText = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const textNormalized = normalizeText(text);
+        for (const entry of colombianCities) {
+            const cityNormalized = normalizeText(entry.city);
+            if (textNormalized.includes(cityNormalized)) {
+                data.city = entry.city;
+                data.department = entry.department;
                 break;
             }
         }
 
         // Validate minimum data
-        if (data.trackingNumber || data.customerName || data.customerPhone) {
+        if (data.trackingNumber && (data.customerName || data.customerPhone)) {
             return {
                 trackingNumber: data.trackingNumber || 'UNKNOWN',
                 customerName: data.customerName || 'Unknown',
                 customerPhone: data.customerPhone,
                 shippingAddress: data.shippingAddress || '',
                 city: data.city || '',
+                department: data.department || '',
                 carrier: data.carrier || 'Unknown',
-                rawText: text.substring(0, 500)
+                rawText: text.substring(0, 1000)
             } as ShippingGuideData;
         }
 

@@ -9,6 +9,8 @@ export const config = {
     
     // Dashboard secret for WebSocket authentication
     dashboardSecret: process.env.DASHBOARD_SECRET || '',
+    // API key for authenticating incoming requests
+    apiKey: process.env.SHIPPING_API_KEY || '',
     
     // Folder to watch for new shipping guides
     watchFolder: process.env.WATCH_FOLDER || './guides',
@@ -34,3 +36,8 @@ export const config = {
         tesseractPath: process.env.TESSERACT_PATH
     }
 };
+
+// Log warning if SHIPPING_API_KEY is not set
+if (!config.apiKey) {
+    console.warn('⚠️ WARNING: SHIPPING_API_KEY is not set. API endpoints will not require authentication.');
+}
