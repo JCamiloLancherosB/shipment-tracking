@@ -14,6 +14,8 @@ process.env.TECHAURA_DB_PORT = '3306';
 process.env.TECHAURA_DB_USER = 'test_user';
 process.env.TECHAURA_DB_PASSWORD = 'test_password';
 process.env.TECHAURA_DB_NAME = 'test_db';
+process.env.DASHBOARD_SECRET = 'test-dashboard-secret';
+process.env.CORS_ORIGIN = 'http://localhost:3010';
 
 // Mock console methods to reduce noise in tests
 global.console = {

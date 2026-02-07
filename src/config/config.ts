@@ -4,6 +4,12 @@ dotenv.config();
 export const config = {
     port: parseInt(process.env.PORT || '3010'),
     
+    // CORS origin for WebSocket connections (defaults to same-origin)
+    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3010',
+    
+    // Dashboard secret for WebSocket authentication
+    dashboardSecret: process.env.DASHBOARD_SECRET || '',
+    
     // Folder to watch for new shipping guides
     watchFolder: process.env.WATCH_FOLDER || './guides',
     
