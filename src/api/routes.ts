@@ -48,7 +48,8 @@ export function setupRoutes(app: express.Application, services: Services): void 
     // Mount carrier routes for multi-carrier tracking
     app.use('/api', carrierRoutes);
 
-    // Basic health check
+    // Note: Primary /health endpoint is registered early in index.ts for resilience.
+    // This serves as a fallback when routes are used standalone (e.g., tests).
     app.get('/health', (req: Request, res: Response) => {
         res.json({ 
             status: 'healthy', 
