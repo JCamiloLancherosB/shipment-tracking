@@ -106,6 +106,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(200);
 
@@ -126,6 +127,7 @@ describe('API Routes Integration Tests', () => {
     it('should return 400 when no file is uploaded', async () => {
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .expect(400);
 
       expect(response.body).toEqual({
@@ -139,6 +141,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(400);
 
@@ -154,6 +157,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(200);
 
@@ -171,6 +175,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(500);
 
@@ -185,6 +190,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(500);
 
@@ -202,6 +208,7 @@ describe('API Routes Integration Tests', () => {
 
       await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(200);
 
@@ -218,6 +225,7 @@ describe('API Routes Integration Tests', () => {
 
       await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(400);
 
@@ -253,6 +261,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-parse')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(200);
 
@@ -267,6 +276,7 @@ describe('API Routes Integration Tests', () => {
     it('should return 400 when no file uploaded', async () => {
       const response = await request(app)
         .post('/api/test-parse')
+        .set('x-api-key', 'test-shipping-api-key')
         .expect(400);
 
       expect(response.body).toEqual({
@@ -280,6 +290,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-parse')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(400);
 
@@ -294,6 +305,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-parse')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(500);
 
@@ -308,6 +320,7 @@ describe('API Routes Integration Tests', () => {
 
       await request(app)
         .post('/api/test-parse')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFilePath)
         .expect(200);
 
@@ -323,6 +336,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({
           customerPhone: '573001234567'
         })
@@ -341,6 +355,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({
           customerName: 'Juan Carlos Pérez',
           city: 'Bogota'
@@ -358,6 +373,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({
           shippingAddress: 'Calle 45 # 23-67'
         })
@@ -372,6 +388,7 @@ describe('API Routes Integration Tests', () => {
     it('should return 400 when no search parameters provided', async () => {
       const response = await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({})
         .expect(400);
 
@@ -386,6 +403,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({
           customerPhone: '579999999999'
         })
@@ -402,6 +420,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({
           customerPhone: '573001234567'
         })
@@ -418,6 +437,7 @@ describe('API Routes Integration Tests', () => {
 
       await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({
           customerPhone: '573001234567'
         })
@@ -479,6 +499,7 @@ describe('API Routes Integration Tests', () => {
         fs.writeFileSync(testFile, `test ${i}`);
         const response = await request(app)
           .post('/api/test-parse')
+          .set('x-api-key', 'test-shipping-api-key')
           .attach('guide', testFile);
 
         expect(response.status).toBeLessThan(429);
@@ -494,6 +515,7 @@ describe('API Routes Integration Tests', () => {
     it('should validate JSON content type for test-match', async () => {
       const response = await request(app)
         .post('/api/test-match')
+        .set('x-api-key', 'test-shipping-api-key')
         .set('Content-Type', 'application/json')
         .send(JSON.stringify({
           customerPhone: '573001234567'
@@ -505,6 +527,7 @@ describe('API Routes Integration Tests', () => {
     it('should validate multipart content for file uploads', async () => {
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .send({ data: 'not a file' })
         .expect(400);
 
@@ -516,6 +539,7 @@ describe('API Routes Integration Tests', () => {
     it('should return consistent error format', async () => {
       const response = await request(app)
         .post('/api/process-guide')
+        .set('x-api-key', 'test-shipping-api-key')
         .expect(400);
 
       expect(response.body).toHaveProperty('success', false);
@@ -542,6 +566,7 @@ describe('API Routes Integration Tests', () => {
 
       const response = await request(freshApp)
         .post('/api/test-parse')
+        .set('x-api-key', 'test-shipping-api-key')
         .attach('guide', testFile)
         .expect(500);
 
