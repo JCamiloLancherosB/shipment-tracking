@@ -6,7 +6,7 @@ import { FolderWatcher } from './watchers/FolderWatcher';
 import { GuideParser } from './services/GuideParser';
 import { CustomerMatcher } from './services/CustomerMatcher';
 import { WhatsAppSender } from './services/WhatsAppSender';
-import { setupRoutes } from './api/routes';
+import { setupRoutes, cleanupOldUploads, UPLOAD_MAX_AGE_MS } from './api/routes';
 import { createViewRouter } from './api/viewRoutes';
 import { setupWebSocket } from './websocket';
 import { ShippingGuideData, CustomerMatch, ICustomerMatcher } from './types';
@@ -201,6 +201,12 @@ class ShipmentTrackingApp {
         httpServer.listen(port, '0.0.0.0', () => {
             console.log(`🚀 Shipment Tracking listening on port ${port}`);
             console.log(`✅ Health: http://localhost:${port}/health`);
+
+            // Cleanup old uploads at startup
+            cleanupOldUploads();
+
+            // Periodic cleanup every hour
+            setInterval(() => cleanupOldUploads(), UPLOAD_MAX_AGE_MS);
 
             // 3. THIRD: Initialize services in background (after port is open)
             this.initializeServices().then(() => {

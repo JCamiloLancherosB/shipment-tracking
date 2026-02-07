@@ -3,6 +3,7 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { GuideParser } from '../services/GuideParser';
 import { ICustomerMatcher } from '../types';
 import { WhatsAppSender } from '../services/WhatsAppSender';
@@ -10,11 +11,52 @@ import webhooksRouter from '../routes/webhooks';
 import carrierRoutes from './carrierRoutes';
 import { apiKeyAuth } from '../middleware/auth';
 
+// Upload directory using OS-appropriate temp path
+export const UPLOAD_DIR = path.join(os.tmpdir(), 'shipment-tracking-uploads');
+
+// Max age for orphaned uploads (1 hour in milliseconds)
+export const UPLOAD_MAX_AGE_MS = 60 * 60 * 1000;
+
+// Allowed file extensions for uploads
+const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.bmp'];
+
 // Setup multer for file uploads
 const upload = multer({ 
-    dest: '/tmp/uploads/',
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+    dest: UPLOAD_DIR,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (_req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, ALLOWED_EXTENSIONS.includes(ext));
+    }
 });
+
+/**
+ * Cleans up files older than the specified max age from the upload directory.
+ * @param maxAgeMs Maximum file age in milliseconds (default: 1 hour)
+ */
+export function cleanupOldUploads(maxAgeMs: number = UPLOAD_MAX_AGE_MS): void {
+    try {
+        if (!fs.existsSync(UPLOAD_DIR)) {
+            return;
+        }
+        const now = Date.now();
+        const files = fs.readdirSync(UPLOAD_DIR);
+        for (const file of files) {
+            const filePath = path.join(UPLOAD_DIR, file);
+            try {
+                const stats = fs.statSync(filePath);
+                if (stats.isFile() && (now - stats.mtimeMs) > maxAgeMs) {
+                    fs.unlinkSync(filePath);
+                    console.log(`🧹 Cleaned up orphaned upload: ${file}`);
+                }
+            } catch {
+                // Ignore errors for individual files (may have been deleted already)
+            }
+        }
+    } catch {
+        // Ignore errors during cleanup (directory may not exist yet)
+    }
+}
 
 // Rate limiter for file upload endpoints
 const uploadLimiter = rateLimit({
