@@ -51,9 +51,11 @@ export function setupRoutes(app: express.Application, services: Services): void 
     // Basic health check
     app.get('/health', (req: Request, res: Response) => {
         res.json({ 
-            status: 'ok', 
+            status: 'healthy', 
             service: 'shipment-tracking',
-            timestamp: new Date().toISOString()
+            port: parseInt(process.env.PORT || '3010'),
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
         });
     });
 
