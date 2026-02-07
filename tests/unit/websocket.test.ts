@@ -6,6 +6,7 @@ import {
     notifyNewOrder,
     notifyStatusChange,
     getIO,
+    maskPhone,
     OrderQueueItem
 } from '../../src/websocket';
 import { createServer } from 'http';
@@ -24,11 +25,15 @@ jest.mock('socket.io', () => {
             callback(mockSocket);
         }
     });
+    const mockUse = jest.fn((middleware) => {
+        // Store middleware for testing but don't block connection
+    });
 
     return {
         Server: jest.fn().mockImplementation(() => ({
             emit: mockEmit,
-            on: mockOn
+            on: mockOn,
+            use: mockUse
         }))
     };
 });
@@ -130,7 +135,7 @@ describe('WebSocket Module', () => {
             setupWebSocket(httpServer);
         });
 
-        it('should emit new-order event via notifyNewOrder', () => {
+        it('should emit new-order event via notifyNewOrder with masked phone', () => {
             const order: OrderQueueItem = {
                 orderNumber: 'ORD-004',
                 customerName: 'Test Customer',
@@ -145,7 +150,10 @@ describe('WebSocket Module', () => {
 
             const io = getIO();
             expect(io).not.toBeNull();
-            expect(io!.emit).toHaveBeenCalledWith('new-order', order);
+            expect(io!.emit).toHaveBeenCalledWith('new-order', expect.objectContaining({
+                orderNumber: 'ORD-004',
+                phone: '****4567'
+            }));
         });
 
         it('should emit status-change event via notifyStatusChange', () => {
@@ -190,5 +198,82 @@ describe('OrderQueueItem interface', () => {
         expect(order.city).toBeDefined();
         expect(order.product).toBeDefined();
         expect(order.receivedAt).toBeInstanceOf(Date);
+    });
+});
+
+describe('maskPhone', () => {
+    it('should mask phone numbers longer than 4 digits', () => {
+        expect(maskPhone('3001234567')).toBe('****4567');
+    });
+
+    it('should mask phone with exactly 5 digits', () => {
+        expect(maskPhone('12345')).toBe('****2345');
+    });
+
+    it('should return phone as-is if 4 or fewer digits', () => {
+        expect(maskPhone('1234')).toBe('1234');
+        expect(maskPhone('123')).toBe('123');
+        expect(maskPhone('')).toBe('');
+    });
+});
+
+describe('WebSocket Authentication', () => {
+    it('should register authentication middleware via io.use', () => {
+        const httpServer = createServer();
+        const io = setupWebSocket(httpServer);
+
+        expect(io.use).toHaveBeenCalled();
+    });
+
+    it('should authenticate with valid token', () => {
+        const httpServer = createServer();
+        const io = setupWebSocket(httpServer);
+
+        // Extract the middleware function passed to io.use
+        const useCall = (io.use as jest.Mock).mock.calls[0];
+        const middleware = useCall[0];
+
+        const mockSocket = {
+            handshake: { auth: { token: 'test-dashboard-secret' } }
+        };
+        const mockNext = jest.fn();
+
+        middleware(mockSocket, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('should reject connection with invalid token', () => {
+        const httpServer = createServer();
+        const io = setupWebSocket(httpServer);
+
+        const useCall = (io.use as jest.Mock).mock.calls[0];
+        const middleware = useCall[0];
+
+        const mockSocket = {
+            handshake: { auth: { token: 'wrong-token' } }
+        };
+        const mockNext = jest.fn();
+
+        middleware(mockSocket, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it('should reject connection with missing token', () => {
+        const httpServer = createServer();
+        const io = setupWebSocket(httpServer);
+
+        const useCall = (io.use as jest.Mock).mock.calls[0];
+        const middleware = useCall[0];
+
+        const mockSocket = {
+            handshake: { auth: {} }
+        };
+        const mockNext = jest.fn();
+
+        middleware(mockSocket, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
     });
 });
