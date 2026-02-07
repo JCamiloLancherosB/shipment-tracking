@@ -8,6 +8,7 @@ import { CustomerMatcher } from '../services/CustomerMatcher';
 import { WhatsAppSender } from '../services/WhatsAppSender';
 import webhooksRouter from '../routes/webhooks';
 import carrierRoutes from './carrierRoutes';
+import { apiKeyAuth } from '../middleware/auth';
 
 // Setup multer for file uploads
 const upload = multer({ 
@@ -61,7 +62,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Extended health check that verifies TechAura API connection
-    app.get('/health/techaura', async (req: Request, res: Response) => {
+    app.get('/health/techaura', apiKeyAuth, async (req: Request, res: Response) => {
         try {
             const healthResult = await services.sender.checkHealth();
             
@@ -96,7 +97,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Manual guide upload and processing
-    app.post('/api/process-guide', uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
+    app.post('/api/process-guide', apiKeyAuth, uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
         try {
             if (!req.file) {
                 return res.status(400).json({ 
@@ -172,7 +173,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Test guide parsing only (no sending)
-    app.post('/api/test-parse', uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
+    app.post('/api/test-parse', apiKeyAuth, uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
         try {
             if (!req.file) {
                 return res.status(400).json({ 
@@ -211,7 +212,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
     });
 
     // Test customer matching
-    app.post('/api/test-match', testLimiter, async (req: Request, res: Response) => {
+    app.post('/api/test-match', apiKeyAuth, testLimiter, async (req: Request, res: Response) => {
         try {
             const { customerName, customerPhone, shippingAddress, city } = req.body;
 

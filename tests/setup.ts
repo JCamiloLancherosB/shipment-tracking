@@ -9,6 +9,7 @@ process.env.WHATSAPP_API_URL = 'http://localhost:9999';
 process.env.WHATSAPP_API_KEY = 'test-api-key';
 process.env.TECHAURA_API_URL = 'http://localhost:9999';
 process.env.TECHAURA_API_KEY = 'test-techaura-api-key';
+process.env.SHIPPING_API_KEY = 'test-shipping-api-key';
 process.env.TECHAURA_DB_HOST = 'localhost';
 process.env.TECHAURA_DB_PORT = '3306';
 process.env.TECHAURA_DB_USER = 'test_user';
