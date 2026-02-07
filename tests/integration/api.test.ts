@@ -56,9 +56,11 @@ describe('API Routes Integration Tests', () => {
         .expect(200);
 
       expect(response.body).toEqual({
-        status: 'ok',
+        status: 'healthy',
         service: 'shipment-tracking',
-        timestamp: expect.any(String)
+        port: 3999,
+        timestamp: expect.any(String),
+        uptime: expect.any(Number)
       });
     });
 

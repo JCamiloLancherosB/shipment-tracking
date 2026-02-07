@@ -429,7 +429,7 @@ describe('End-to-End Flow Tests', () => {
         .get('/health')
         .expect(200);
 
-      expect(response.body.status).toBe('ok');
+      expect(response.body.status).toBe('healthy');
     });
 
     it('should handle concurrent requests', async () => {
@@ -446,7 +446,7 @@ describe('End-to-End Flow Tests', () => {
       const responses = await Promise.all(requests);
       
       responses.forEach(response => {
-        expect(response.body.status).toBe('ok');
+        expect(response.body.status).toBe('healthy');
       });
     });
   });

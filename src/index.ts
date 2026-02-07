@@ -99,8 +99,12 @@ class ShipmentTrackingApp {
             sender: this.sender
         });
         
-        // Start folder watcher
-        this.watcher.start();
+        // Start folder watcher (non-blocking: log error but don't crash)
+        try {
+            this.watcher.start();
+        } catch (error) {
+            console.error('⚠️ Failed to start folder watcher:', error);
+        }
         
         // Create HTTP server and setup WebSocket
         const port = config.port || 3010;
@@ -110,7 +114,7 @@ class ShipmentTrackingApp {
         setupWebSocket(httpServer);
         
         // Start HTTP server with WebSocket support
-        httpServer.listen(port, () => {
+        httpServer.listen(port, '0.0.0.0', () => {
             console.log(`
 🚚 Shipment Tracking System Started
 ===================================
@@ -118,6 +122,7 @@ class ShipmentTrackingApp {
 🌐 API available at: http://localhost:${port}
 🖥️  Dashboard at: http://localhost:${port}/dashboard
 📡 WebSocket available at: ws://localhost:${port}
+✅ Health check available at http://localhost:${port}/health
 🔗 Connected to TechAura DB: ${config.techauraDb.host}
             `);
         });
