@@ -248,6 +248,24 @@ describe('GuideParser', () => {
       fs.unlinkSync(testFile);
     });
 
+    it('should return valid data when tracking number AND customer name are present', async () => {
+      const pdfParseMock = require('pdf-parse');
+      pdfParseMock.mockResolvedValueOnce({
+        text: 'Guía: SV999888777\nDestinatario: Laura Gómez'
+      });
+      
+      const testFile = '/tmp/tracking-and-name.pdf';
+      fs.writeFileSync(testFile, 'test');
+      
+      const result = await parser.parse(testFile);
+      
+      expect(result).not.toBeNull();
+      expect(result?.trackingNumber).toBe('SV999888777');
+      expect(result?.customerName).toBe('Laura Gómez');
+      
+      fs.unlinkSync(testFile);
+    });
+
     it('should handle partial data extraction', async () => {
       const testFile = '/tmp/test.pdf';
       fs.writeFileSync(testFile, 'test');
