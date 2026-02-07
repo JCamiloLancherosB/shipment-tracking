@@ -224,4 +224,56 @@ describe('WebSocket Authentication', () => {
 
         expect(io.use).toHaveBeenCalled();
     });
+
+    it('should authenticate with valid token', () => {
+        const httpServer = createServer();
+        const io = setupWebSocket(httpServer);
+
+        // Extract the middleware function passed to io.use
+        const useCall = (io.use as jest.Mock).mock.calls[0];
+        const middleware = useCall[0];
+
+        const mockSocket = {
+            handshake: { auth: { token: 'test-dashboard-secret' } }
+        };
+        const mockNext = jest.fn();
+
+        middleware(mockSocket, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it('should reject connection with invalid token', () => {
+        const httpServer = createServer();
+        const io = setupWebSocket(httpServer);
+
+        const useCall = (io.use as jest.Mock).mock.calls[0];
+        const middleware = useCall[0];
+
+        const mockSocket = {
+            handshake: { auth: { token: 'wrong-token' } }
+        };
+        const mockNext = jest.fn();
+
+        middleware(mockSocket, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it('should reject connection with missing token', () => {
+        const httpServer = createServer();
+        const io = setupWebSocket(httpServer);
+
+        const useCall = (io.use as jest.Mock).mock.calls[0];
+        const middleware = useCall[0];
+
+        const mockSocket = {
+            handshake: { auth: {} }
+        };
+        const mockNext = jest.fn();
+
+        middleware(mockSocket, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+    });
 });

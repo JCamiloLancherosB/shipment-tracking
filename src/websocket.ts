@@ -47,6 +47,10 @@ export function setupWebSocket(server: HttpServer): Server {
 
     // Authenticate WebSocket connections using a dashboard secret
     io.use((socket, next) => {
+        if (!config.dashboardSecret) {
+            next(new Error('Authentication error: DASHBOARD_SECRET not configured'));
+            return;
+        }
         const token = socket.handshake.auth.token;
         if (token && token === config.dashboardSecret) {
             next();
