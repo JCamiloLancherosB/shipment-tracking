@@ -52,9 +52,9 @@ describe('GuideParser', () => {
       expect(result?.carrier).toBe('Servientrega');
       expect(result?.customerName).toContain('Juan Carlos Pérez');
       expect(result?.customerPhone).toBe('573001234567');
-      // City extraction may vary based on mock data
+      // City extraction should now return proper accent form
       if (result) {
-        expect(['Bogota', 'Bogotá', '']).toContain(result.city);
+        expect(['Bogotá', '']).toContain(result.city);
       }
 
       // Cleanup
@@ -210,7 +210,7 @@ describe('GuideParser', () => {
       
       // City should be extracted from the guide that mentions "Bogotá"
       if (result) {
-        expect(['Bogota', 'Bogotá', '']).toContain(result.city);
+        expect(['Bogotá', '']).toContain(result.city);
       }
       fs.unlinkSync(testFile);
     });
@@ -228,8 +228,22 @@ describe('GuideParser', () => {
       const result = await parser.parse(testFile);
       
       // With completely random text that doesn't match any patterns, should return null
-      // But our implementation might return UNKNOWN values, so we just check it processes
-      expect(result === null || result?.trackingNumber === 'UNKNOWN').toBe(true);
+      expect(result).toBeNull();
+      
+      fs.unlinkSync(testFile);
+    });
+
+    it('should return null when only tracking number is found without customer info', async () => {
+      const pdfParseMock = require('pdf-parse');
+      pdfParseMock.mockResolvedValueOnce({ text: 'Guía: SV999888777\nSome random content without name or phone' });
+      
+      const testFile = '/tmp/tracking-only.pdf';
+      fs.writeFileSync(testFile, 'test');
+      
+      const result = await parser.parse(testFile);
+      
+      // Should return null because we require tracking AND (name OR phone)
+      expect(result).toBeNull();
       
       fs.unlinkSync(testFile);
     });
@@ -247,6 +261,98 @@ describe('GuideParser', () => {
         result?.customerName || 
         result?.customerPhone
       ).toBeTruthy();
+      
+      fs.unlinkSync(testFile);
+    });
+  });
+
+  describe('extractData - City Matching', () => {
+    it('should match cities with accents via normalization', async () => {
+      const pdfParseMock = require('pdf-parse');
+      pdfParseMock.mockResolvedValueOnce({
+        text: 'Guía: SV111222333\nDestinatario: Ana María Torres\nTeléfono: 3001112233\nCiudad: Bogotá'
+      });
+      
+      const testFile = '/tmp/accent-city.pdf';
+      fs.writeFileSync(testFile, 'test');
+      
+      const result = await parser.parse(testFile);
+      
+      expect(result).not.toBeNull();
+      expect(result?.city).toBe('Bogotá');
+      expect(result?.department).toBe('Cundinamarca');
+      
+      fs.unlinkSync(testFile);
+    });
+
+    it('should match cities without accents via normalization', async () => {
+      const pdfParseMock = require('pdf-parse');
+      pdfParseMock.mockResolvedValueOnce({
+        text: 'Guía: SV111222333\nDestinatario: Ana María Torres\nTeléfono: 3001112233\nCiudad: MEDELLIN'
+      });
+      
+      const testFile = '/tmp/no-accent-city.pdf';
+      fs.writeFileSync(testFile, 'test');
+      
+      const result = await parser.parse(testFile);
+      
+      expect(result).not.toBeNull();
+      expect(result?.city).toBe('Medellín');
+      expect(result?.department).toBe('Antioquia');
+      
+      fs.unlinkSync(testFile);
+    });
+
+    it('should detect cities not in the old hardcoded list', async () => {
+      const pdfParseMock = require('pdf-parse');
+      pdfParseMock.mockResolvedValueOnce({
+        text: 'Guía: SV111222333\nDestinatario: Pedro López\nTeléfono: 3009998877\nCiudad: Manizales'
+      });
+      
+      const testFile = '/tmp/new-city.pdf';
+      fs.writeFileSync(testFile, 'test');
+      
+      const result = await parser.parse(testFile);
+      
+      expect(result).not.toBeNull();
+      expect(result?.city).toBe('Manizales');
+      expect(result?.department).toBe('Caldas');
+      
+      fs.unlinkSync(testFile);
+    });
+
+    it('should include department in extracted data', async () => {
+      const pdfParseMock = require('pdf-parse');
+      pdfParseMock.mockResolvedValueOnce({
+        text: 'Guía: SV111222333\nDestinatario: Carlos Ruiz\nTeléfono: 3005551234\nCiudad: Cúcuta'
+      });
+      
+      const testFile = '/tmp/dept-city.pdf';
+      fs.writeFileSync(testFile, 'test');
+      
+      const result = await parser.parse(testFile);
+      
+      expect(result).not.toBeNull();
+      expect(result?.city).toBe('Cúcuta');
+      expect(result?.department).toBe('Norte de Santander');
+      
+      fs.unlinkSync(testFile);
+    });
+  });
+
+  describe('extractData - rawText length', () => {
+    it('should truncate rawText to 1000 chars', async () => {
+      const longText = 'Guía: SV111222333\nDestinatario: Ana María Torres\nTeléfono: 3001112233\n' + 'x'.repeat(2000);
+      const pdfParseMock = require('pdf-parse');
+      pdfParseMock.mockResolvedValueOnce({ text: longText });
+      
+      const testFile = '/tmp/long-text.pdf';
+      fs.writeFileSync(testFile, 'test');
+      
+      const result = await parser.parse(testFile);
+      
+      expect(result).not.toBeNull();
+      expect(result?.rawText.length).toBeLessThanOrEqual(1000);
       
       fs.unlinkSync(testFile);
     });
