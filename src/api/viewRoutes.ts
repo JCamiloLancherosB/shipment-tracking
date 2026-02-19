@@ -174,6 +174,14 @@ export function createViewRouter(): Router {
         res.redirect('/dashboard');
     });
 
+    // Order confirmation view for WhatsApp-extracted orders
+    router.get('/orders/confirm', (req: Request, res: Response) => {
+        res.render('order-confirmation', {
+            title: 'Confirmar Pedidos de WhatsApp',
+            currentPage: 'whatsapp'
+        });
+    });
+
     return router;
 }
 

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmar Pedidos de WhatsApp | TechAura Shipments</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .whatsapp-upload-section { margin-bottom: 2rem; }
+        .drop-zone-wa {
+            border: 2px dashed #25D366;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .drop-zone-wa.drag-over { background: #e8fdf0; }
+        .drop-zone-wa input[type="file"] { display: none; }
+        .confidence-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .confidence-high { background: #d4edda; color: #155724; }
+        .confidence-mid  { background: #fff3cd; color: #856404; }
+        .confidence-low  { background: #f8d7da; color: #721c24; }
+        .orders-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .orders-table th, .orders-table td {
+            border: 1px solid #dee2e6;
+            padding: 6px 8px;
+            vertical-align: top;
+        }
+        .orders-table th { background: #f8f9fa; font-weight: 600; white-space: nowrap; }
+        .orders-table td input, .orders-table td select {
+            width: 100%;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 0.875rem;
+        }
+        .orders-table tr.confirmed { background: #f0fff4; }
+        .orders-table tr.deleted { display: none; }
+        .btn-confirm { background: #28a745; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+        .btn-delete  { background: #dc3545; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+        .btn-confirm:disabled { background: #6c757d; cursor: default; }
+        .export-bar { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: center; }
+        .export-bar .btn { padding: 8px 18px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem; }
+        .btn-csv { background: #17a2b8; color: #fff; }
+        .btn-xlsx { background: #1d6f42; color: #fff; }
+        #uploadProgress { margin-top: 1rem; font-style: italic; color: #666; }
+        #noOrdersMsg { color: #6c757d; font-style: italic; margin-top: 1rem; }
+        .table-wrapper { overflow-x: auto; }
+        .raw-text-toggle { font-size: 0.75em; color: #007bff; cursor: pointer; white-space: nowrap; }
+        .raw-text-block { display: none; font-size: 0.75em; background: #f1f1f1; padding: 4px; border-radius: 4px; max-width: 200px; word-break: break-all; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<div class="app-container">
+    <%- include('partials/sidebar', { currentPage: 'whatsapp' }) %>
+
+    <main class="main-content">
+        <h1>📱 Crear Guías desde WhatsApp</h1>
+
+        <div class="whatsapp-upload-section">
+            <h2>Subir capturas de pantalla</h2>
+            <div class="drop-zone-wa" id="dropZoneWa">
+                <input type="file" id="waImages" accept=".png,.jpg,.jpeg,.webp,.bmp" multiple />
+                <div>
+                    <span style="font-size:2rem">📷</span>
+                    <p>Arrastra las capturas de WhatsApp aquí o <strong>haz clic para seleccionar</strong></p>
+                    <p style="color:#666; font-size:0.875rem">Formatos: PNG, JPG, WEBP, BMP — múltiples archivos permitidos</p>
+                </div>
+            </div>
+            <div id="selectedFiles" style="margin-top:0.5rem; font-size:0.875rem; color:#555;"></div>
+            <button id="btnExtract" class="btn btn-primary" style="margin-top:1rem;" disabled>
+                🔍 Extraer pedidos
+            </button>
+            <div id="uploadProgress"></div>
+        </div>
+
+        <div id="ordersSection" style="display:none">
+            <h2>Pedidos extraídos <span id="orderCount" style="font-size:0.9rem; color:#666;"></span></h2>
+
+            <div class="table-wrapper">
+                <table class="orders-table" id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Confianza</th>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Ciudad</th>
+                            <th>Barrio</th>
+                            <th>Cédula</th>
+                            <th>Nota / Referencia</th>
+                            <th>Con Recaudo</th>
+                            <th>Transportadora</th>
+                            <th>Texto OCR</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersBody"></tbody>
+                </table>
+            </div>
+
+            <p id="noOrdersMsg" style="display:none">No se encontraron pedidos en las imágenes.</p>
+
+            <div class="export-bar">
+                <button class="btn btn-csv" id="btnExportCsv">📄 Exportar a CSV</button>
+                <button class="btn btn-xlsx" id="btnExportXlsx">📊 Exportar a Excel (.xlsx)</button>
+                <span id="exportStatus" style="color:#666; font-size:0.875rem;"></span>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+(function() {
+    const dropZone = document.getElementById('dropZoneWa');
+    const fileInput = document.getElementById('waImages');
+    const btnExtract = document.getElementById('btnExtract');
+    const selectedFilesDiv = document.getElementById('selectedFiles');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const ordersSection = document.getElementById('ordersSection');
+    const ordersBody = document.getElementById('ordersBody');
+    const orderCount = document.getElementById('orderCount');
+    const noOrdersMsg = document.getElementById('noOrdersMsg');
+    const exportStatus = document.getElementById('exportStatus');
+
+    let extractedOrders = [];
+
+    // Drag & drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        fileInput.files = e.dataTransfer.files;
+        updateFileList();
+    });
+
+    fileInput.addEventListener('change', updateFileList);
+
+    function updateFileList() {
+        const files = fileInput.files;
+        if (files && files.length > 0) {
+            selectedFilesDiv.textContent = `${files.length} archivo(s) seleccionado(s): ` +
+                Array.from(files).map(f => f.name).join(', ');
+            btnExtract.disabled = false;
+        } else {
+            selectedFilesDiv.textContent = '';
+            btnExtract.disabled = true;
+        }
+    }
+
+    btnExtract.addEventListener('click', async () => {
+        const files = fileInput.files;
+        if (!files || files.length === 0) return;
+
+        btnExtract.disabled = true;
+        uploadProgress.textContent = '⏳ Procesando imágenes con OCR... puede tardar unos segundos por imagen.';
+
+        const formData = new FormData();
+        Array.from(files).forEach(f => formData.append('images', f));
+
+        try {
+            const headers = {};
+            const apiKey = getApiKeyFromMeta();
+            if (apiKey) headers['x-api-key'] = apiKey;
+
+            const res = await fetch('/api/extract-whatsapp-orders', {
+                method: 'POST',
+                headers,
+                body: formData
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                uploadProgress.textContent = '❌ Error: ' + (data.error || 'Desconocido');
+                btnExtract.disabled = false;
+                return;
+            }
+
+            extractedOrders = data.orders || [];
+            uploadProgress.textContent = '';
+            renderOrders(extractedOrders);
+            btnExtract.disabled = false;
+        } catch (err) {
+            uploadProgress.textContent = '❌ Error de red: ' + err.message;
+            btnExtract.disabled = false;
+        }
+    });
+
+    function getApiKeyFromMeta() {
+        const meta = document.querySelector('meta[name="x-api-key"]');
+        return meta ? meta.getAttribute('content') : null;
+    }
+
+    function confidenceClass(conf) {
+        if (conf >= 0.8) return 'confidence-high';
+        if (conf >= 0.5) return 'confidence-mid';
+        return 'confidence-low';
+    }
+
+    function confidenceLabel(conf) {
+        const pct = Math.round(conf * 100);
+        return pct + '%';
+    }
+
+    function renderOrders(orders) {
+        ordersSection.style.display = 'block';
+        ordersBody.innerHTML = '';
+
+        if (!orders || orders.length === 0) {
+            noOrdersMsg.style.display = 'block';
+            orderCount.textContent = '';
+            return;
+        }
+
+        noOrdersMsg.style.display = 'none';
+        orderCount.textContent = `(${orders.length} pedido(s))`;
+
+        orders.forEach((order, idx) => {
+            const tr = document.createElement('tr');
+            tr.dataset.idx = idx;
+
+            const confClass = confidenceClass(order.confidence);
+            const confLabel = confidenceLabel(order.confidence);
+
+            const rawId = 'raw_' + idx;
+
+            tr.innerHTML = `
+                <td>${idx + 1}</td>
+                <td><span class="confidence-badge ${confClass}">${confLabel}</span></td>
+                <td><input type="text" value="${esc(order.customerName || '')}" placeholder="Nombre" data-field="customerName" /></td>
+                <td><input type="text" value="${esc(order.phone || '')}" placeholder="Teléfono" data-field="phone" /></td>
+                <td><input type="text" value="${esc(order.address || '')}" placeholder="Dirección" data-field="address" /></td>
+                <td><input type="text" value="${esc(order.city || '')}" placeholder="Ciudad" data-field="city" /></td>
+                <td><input type="text" value="${esc(order.neighborhood || '')}" placeholder="Barrio" data-field="neighborhood" /></td>
+                <td><input type="text" value="${esc(order.cedula || '')}" placeholder="Cédula" data-field="cedula" /></td>
+                <td><input type="text" value="${esc(order.references || '')}" placeholder="Nota" data-field="references" /></td>
+                <td><input type="text" value="" placeholder="$0" data-field="conRecaudo" /></td>
+                <td>
+                    <select data-field="transportadora">
+                        <option value="">-- Seleccionar --</option>
+                        <option>Servientrega</option>
+                        <option>Coordinadora</option>
+                        <option>InterRapidísimo</option>
+                        <option>Envía</option>
+                        <option>Deprisa</option>
+                    </select>
+                </td>
+                <td>
+                    <span class="raw-text-toggle" onclick="toggleRaw('${rawId}')">Ver texto</span>
+                    <div class="raw-text-block" id="${rawId}">${esc(order.rawText || '')}</div>
+                </td>
+                <td>
+                    <button class="btn-confirm" onclick="confirmRow(${idx})">✅ Confirmar</button>
+                    <button class="btn-delete" onclick="deleteRow(${idx})" style="margin-top:4px;">❌ Eliminar</button>
+                </td>
+            `;
+            ordersBody.appendChild(tr);
+        });
+    }
+
+    window.toggleRaw = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    };
+
+    window.confirmRow = function(idx) {
+        const tr = ordersBody.querySelector(`tr[data-idx="${idx}"]`);
+        if (!tr) return;
+        tr.classList.add('confirmed');
+        tr.querySelector('.btn-confirm').disabled = true;
+    };
+
+    window.deleteRow = function(idx) {
+        const tr = ordersBody.querySelector(`tr[data-idx="${idx}"]`);
+        if (!tr) return;
+        tr.classList.add('deleted');
+    };
+
+    function getConfirmedOrders() {
+        const rows = ordersBody.querySelectorAll('tr:not(.deleted)');
+        return Array.from(rows).map(tr => {
+            const get = (field) => {
+                const el = tr.querySelector(`[data-field="${field}"]`);
+                return el ? el.value.trim() : '';
+            };
+            return {
+                nombreDestinatario: get('customerName'),
+                telefono: get('phone'),
+                direccion: get('address'),
+                ciudad: get('city'),
+                barrio: get('neighborhood'),
+                conRecaudo: get('conRecaudo'),
+                nota: get('references'),
+                email: '',
+                idVariable: '',
+                codigoPostal: '',
+                transportadora: get('transportadora'),
+                cedula: get('cedula'),
+                colonia: '',
+                seguro: ''
+            };
+        });
+    }
+
+    async function exportOrders(format) {
+        const orders = getConfirmedOrders();
+        if (orders.length === 0) {
+            exportStatus.textContent = '⚠️ No hay pedidos para exportar.';
+            return;
+        }
+
+        exportStatus.textContent = '⏳ Generando archivo...';
+
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            const apiKey = getApiKeyFromMeta();
+            if (apiKey) headers['x-api-key'] = apiKey;
+
+            const res = await fetch('/api/export-orders', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ orders, format })
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                exportStatus.textContent = '❌ Error: ' + (data.error || res.statusText);
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = format === 'xlsx' ? 'ordenes_masivas.xlsx' : 'ordenes_masivas.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            exportStatus.textContent = '✅ Archivo descargado.';
+        } catch (err) {
+            exportStatus.textContent = '❌ Error de red: ' + err.message;
+        }
+    }
+
+    document.getElementById('btnExportCsv').addEventListener('click', () => exportOrders('csv'));
+    document.getElementById('btnExportXlsx').addEventListener('click', () => exportOrders('xlsx'));
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+})();
+</script>
+</body>
+</html>
