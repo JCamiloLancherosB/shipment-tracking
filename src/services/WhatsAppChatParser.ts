@@ -141,6 +141,8 @@ export class WhatsAppChatParser {
         // that looks like a proper name (2-4 capitalized words, no digits, no address keywords)
         const addressKeywords = /\b(?:calle|cl|carrera|cra|avenida|av|barrio|tel|cel|cc|nit|oficina|interrapidisimo|servientrega|bello|bogot|medellin|medellín|cali|buga|ant|valle)\b/i;
         const fullNamePattern = /^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+){1,3}$/;
+        // Words that indicate a delivery reference or location, not a person's name
+        const referenceWords = /\b(?:piso|tercer|segundo|primer|lado|frente|colegio|ferreteria|tienda|local|oficina|bodega|esquina|parque|diagonal|bloque|torre)\b/i;
 
         const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -148,7 +150,8 @@ export class WhatsAppChatParser {
         for (const line of lines) {
             if (/^\+?57\s*3\d/.test(line) || /^\d/.test(line)) continue; // skip phone/digit lines
             if (addressKeywords.test(line)) continue;
-            if (fullNamePattern.test(line) && line.split(' ').length >= 2) {
+            if (referenceWords.test(line)) continue;
+            if (fullNamePattern.test(line) && line.split(' ').length >= 2 && line.split(' ').length <= 4) {
                 return line;
             }
         }
@@ -158,8 +161,9 @@ export class WhatsAppChatParser {
             const line = lines[i];
             if (/^\+?57\s*3\d/.test(line) || /^\d/.test(line)) continue;
             if (addressKeywords.test(line)) continue;
+            if (referenceWords.test(line)) continue;
             // Last line may be shorter (e.g. "Jezus h") — allow single word if title-case
-            if (/^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Za-z\u00C0-\u024F][a-z\u00C0-\u024F]*)*$/.test(line) && line.length >= 3) {
+            if (/^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Za-z\u00C0-\u024F][a-z\u00C0-\u024F]*)*$/.test(line) && line.length >= 3 && line.split(' ').length <= 4) {
                 return line;
             }
         }
@@ -184,7 +188,25 @@ export class WhatsAppChatParser {
             const match = text.match(pattern);
             if (match) {
                 // If captured group, return it; otherwise return full match
-                return (match[1] || match[0]).trim();
+                let result = (match[1] || match[0]).trim();
+
+                // POST-PROCESSING: clean up phone numbers, timestamps, and city names
+                // Remove phone patterns (e.g. "TEL. 3127996451", "+57 312 799 64 51")
+                result = result.replace(/(?:tel\.?|cel\.?)?\s*\+?(?:57)?\s*3\d[\s\d\-]{8,}/gi, '').trim();
+                // Remove timestamps (e.g. "3:45 am", "10:30 p.m.")
+                result = result.replace(/\d{1,2}:\d{2}\s*[ap]\.?m\.?/gi, '').trim();
+                // Remove known Colombian city names at the end of the result
+                for (const entry of this.cities) {
+                    const escaped = entry.city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const cityRegex = new RegExp(`\\s*\\b${escaped}\\b\\s*$`, 'i');
+                    result = result.replace(cityRegex, '').trim();
+                }
+                // Remove trailing separators / punctuation
+                result = result.replace(/[,\-\s]+$/, '').trim();
+                // Discard if result is too short to be a real address
+                if (result.length < 5) return null;
+
+                return result;
             }
         }
 
@@ -246,7 +268,29 @@ export class WhatsAppChatParser {
         for (const pattern of patterns) {
             const match = text.match(pattern);
             if (match?.[1]) {
-                return match[1].trim();
+                let neighborhood = match[1].trim();
+
+                // If the captured text looks like an address (street type + number), discard it
+                if (/\b(?:calle|cl|carrera|cra|avenida|av|transversal|tv|diagonal|dg)\s*\d+/i.test(neighborhood)) {
+                    return null;
+                }
+
+                // If it contains a known city name, keep only the part before that city
+                for (const entry of this.cities) {
+                    const cityLower = entry.city.toLowerCase();
+                    const idx = neighborhood.toLowerCase().indexOf(cityLower);
+                    if (idx > 0) {
+                        neighborhood = neighborhood.substring(0, idx).replace(/[-,\s]+$/, '').trim();
+                        break;
+                    }
+                }
+
+                // Limit to 40 characters
+                if (neighborhood.length > 40) {
+                    neighborhood = neighborhood.substring(0, 40).trim();
+                }
+
+                return neighborhood.length >= 2 ? neighborhood : null;
             }
         }
         return null;
