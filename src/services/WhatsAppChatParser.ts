@@ -108,11 +108,14 @@ export class WhatsAppChatParser {
 
     extractName(text: string): string | null {
         // Look for name indicators (require colon separator, no newline crossing)
+        // Uses [A-Za-z\u00C0-\u024F] to cover all Latin letters including Spanish accented chars
+        const latinLetter = '[A-Za-z\\u00C0-\\u024F]';
+        const nameWord = `${latinLetter}+(?:[.]${latinLetter}*)?`;
         const namePatterns = [
-            /nombre\s*:\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]+(?:[^\S\n]+[A-ZÁÉÍÓÚÑA-Za-záéíóúñ.]+){1,3})/i,
-            /cliente\s*:\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]+(?:[^\S\n]+[A-ZÁÉÍÓÚÑA-Za-záéíóúñ.]+){1,3})/i,
-            /para\s*:\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]+(?:[^\S\n]+[A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ.]+){1,3})/i,
-            /destinatario\s*:\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]+(?:[^\S\n]+[A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ.]+){1,3})/i
+            new RegExp(`nombre\\s*:\\s*(${latinLetter}${nameWord}(?:[^\\S\\n]+${nameWord}){1,3})`, 'i'),
+            new RegExp(`cliente\\s*:\\s*(${latinLetter}${nameWord}(?:[^\\S\\n]+${nameWord}){1,3})`, 'i'),
+            new RegExp(`para\\s*:\\s*(${latinLetter}${nameWord}(?:[^\\S\\n]+${nameWord}){1,3})`, 'i'),
+            new RegExp(`destinatario\\s*:\\s*(${latinLetter}${nameWord}(?:[^\\S\\n]+${nameWord}){1,3})`, 'i')
         ];
 
         for (const pattern of namePatterns) {
@@ -126,8 +129,8 @@ export class WhatsAppChatParser {
         const lines = text.split('\n');
         for (const line of lines) {
             const trimmed = line.trim();
-            // A full name typically has 2-4 words, each starting with uppercase
-            const fullNamePattern = /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3}$/;
+            // A full name typically has 2-4 words, each starting with an uppercase Latin letter
+            const fullNamePattern = /^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+){1,3}$/;
             if (fullNamePattern.test(trimmed) && trimmed.split(' ').length >= 2) {
                 return trimmed;
             }
