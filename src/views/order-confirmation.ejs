@@ -177,6 +177,8 @@
         btnExtract.disabled = selectedFiles.length === 0;
         btnClearAll.style.display = selectedFiles.length > 0 || extractedOrders.length > 0 ? 'inline-block' : 'none';
 
+        // Revoke previous preview URLs to avoid memory leaks
+        Array.from(imagePreviews.querySelectorAll('img')).forEach(img => URL.revokeObjectURL(img.src));
         // Image previews
         imagePreviews.innerHTML = '';
         selectedFiles.forEach(f => {

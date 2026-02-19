@@ -124,7 +124,6 @@
   { "city": "Acacias", "department": "Meta" },
   { "city": "Granada", "department": "Meta" },
   { "city": "Malambo", "department": "Atlántico" },
-  { "city": "Puerto Colombia", "department": "Atlántico" },
-  { "city": "Rionegro", "department": "Antioquia" }
+  { "city": "Puerto Colombia", "department": "Atlántico" }
 ]
 

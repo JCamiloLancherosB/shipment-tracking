@@ -105,10 +105,14 @@ export class WhatsAppChatParser {
         for (const pattern of patterns) {
             const match = text.match(pattern);
             if (match) {
-                // Normalize: remove spaces, dashes, +57 prefix, and label prefix
-                const digits = match[0].replace(/[^\d]/g, '');
-                // Remove country code 57 if present at start and result is 12 digits
-                return digits.startsWith('57') && digits.length === 12 ? digits.slice(2) : digits.slice(-10);
+            // Normalize: extract digits only, remove country code 57 if present
+            const digits = match[0].replace(/[^\d]/g, '');
+            // If 12 digits starting with 57, strip country code; take last 10 digits
+            if (digits.startsWith('57') && digits.length === 12) {
+                return digits.slice(2);
+            }
+            // Return last 10 digits only if we have at least 10
+            return digits.length >= 10 ? digits.slice(-10) : digits;
             }
         }
         return null;
