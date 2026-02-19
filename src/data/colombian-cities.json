@@ -34,6 +34,7 @@
   { "city": "Soacha", "department": "Cundinamarca" },
   { "city": "Soledad", "department": "Atlántico" },
   { "city": "Bello", "department": "Antioquia" },
+  { "city": "Buga", "department": "Valle del Cauca" },
   { "city": "Itagüí", "department": "Antioquia" },
   { "city": "Envigado", "department": "Antioquia" },
   { "city": "Buenaventura", "department": "Valle del Cauca" },
