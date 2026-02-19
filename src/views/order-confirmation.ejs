@@ -50,11 +50,18 @@
         .export-bar .btn { padding: 8px 18px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem; }
         .btn-csv { background: #17a2b8; color: #fff; }
         .btn-xlsx { background: #1d6f42; color: #fff; }
-        #uploadProgress { margin-top: 1rem; font-style: italic; color: #666; }
-        #noOrdersMsg { color: #6c757d; font-style: italic; margin-top: 1rem; }
-        .table-wrapper { overflow-x: auto; }
         .raw-text-toggle { font-size: 0.75em; color: #007bff; cursor: pointer; white-space: nowrap; }
         .raw-text-block { display: none; font-size: 0.75em; background: #f1f1f1; padding: 4px; border-radius: 4px; max-width: 200px; word-break: break-all; white-space: pre-wrap; }
+        #noOrdersMsg { color: #6c757d; font-style: italic; margin-top: 1rem; }
+        .table-wrapper { overflow-x: auto; }
+        .confidence-bar-wrap { width: 80px; height: 8px; background: #e9ecef; border-radius: 4px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+        .confidence-bar { height: 100%; border-radius: 4px; }
+        .bar-high { background: #28a745; }
+        .bar-mid  { background: #ffc107; }
+        .bar-low  { background: #dc3545; }
+        .preview-thumb { max-height: 60px; max-width: 80px; border-radius: 4px; margin: 2px; cursor: pointer; border: 1px solid #dee2e6; }
+        .btn-clear-all { background: #6c757d; color: #fff; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-size: 1rem; }
+        .btn-clear-all:hover { background: #5a6268; }
     </style>
 </head>
 <body>
@@ -72,14 +79,18 @@
                 <input type="file" id="waImages" accept=".png,.jpg,.jpeg,.webp,.bmp" multiple />
                 <div>
                     <span style="font-size:2rem">📷</span>
-                    <p>Arrastra las capturas de WhatsApp aquí o <strong>haz clic para seleccionar</strong></p>
+                    <p>Arrastra 1 o más capturas de WhatsApp aquí o <strong>haz clic para seleccionar</strong></p>
                     <p style="color:#666; font-size:0.875rem">Formatos: PNG, JPG, WEBP, BMP — múltiples archivos permitidos</p>
                 </div>
             </div>
+            <div id="imagePreviews" style="margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:4px;"></div>
             <div id="selectedFiles" style="margin-top:0.5rem; font-size:0.875rem; color:#555;"></div>
-            <button id="btnExtract" class="btn btn-primary" style="margin-top:1rem;" disabled>
-                🔍 Extraer pedidos
-            </button>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; margin-top:1rem;">
+                <button id="btnExtract" class="btn btn-primary" disabled>
+                    🔍 Extraer pedidos
+                </button>
+                <button id="btnClearAll" class="btn-clear-all" style="display:none">🗑 Limpiar todo</button>
+            </div>
             <div id="uploadProgress"></div>
         </div>
 
@@ -125,7 +136,9 @@
     const dropZone = document.getElementById('dropZoneWa');
     const fileInput = document.getElementById('waImages');
     const btnExtract = document.getElementById('btnExtract');
+    const btnClearAll = document.getElementById('btnClearAll');
     const selectedFilesDiv = document.getElementById('selectedFiles');
+    const imagePreviews = document.getElementById('imagePreviews');
     const uploadProgress = document.getElementById('uploadProgress');
     const ordersSection = document.getElementById('ordersSection');
     const ordersBody = document.getElementById('ordersBody');
@@ -134,6 +147,7 @@
     const exportStatus = document.getElementById('exportStatus');
 
     let extractedOrders = [];
+    let selectedFiles = [];
 
     // Drag & drop
     dropZone.addEventListener('click', () => fileInput.click());
@@ -142,42 +156,63 @@
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
-        fileInput.files = e.dataTransfer.files;
-        updateFileList();
+        addFiles(e.dataTransfer.files);
     });
 
-    fileInput.addEventListener('change', updateFileList);
+    fileInput.addEventListener('change', () => addFiles(fileInput.files));
 
-    function updateFileList() {
-        const files = fileInput.files;
-        if (files && files.length > 0) {
-            selectedFilesDiv.textContent = `${files.length} archivo(s) seleccionado(s): ` +
-                Array.from(files).map(f => f.name).join(', ');
-            btnExtract.disabled = false;
-        } else {
-            selectedFilesDiv.textContent = '';
-            btnExtract.disabled = true;
-        }
+    function addFiles(newFiles) {
+        Array.from(newFiles).forEach(f => {
+            if (!selectedFiles.find(x => x.name === f.name && x.size === f.size)) {
+                selectedFiles.push(f);
+            }
+        });
+        updateFileListUI();
     }
 
+    function updateFileListUI() {
+        selectedFilesDiv.textContent = selectedFiles.length > 0
+            ? selectedFiles.length + ' archivo(s): ' + selectedFiles.map(f => f.name).join(', ')
+            : '';
+        btnExtract.disabled = selectedFiles.length === 0;
+        btnClearAll.style.display = selectedFiles.length > 0 || extractedOrders.length > 0 ? 'inline-block' : 'none';
+
+        // Revoke previous preview URLs to avoid memory leaks
+        Array.from(imagePreviews.querySelectorAll('img')).forEach(img => URL.revokeObjectURL(img.src));
+        // Image previews
+        imagePreviews.innerHTML = '';
+        selectedFiles.forEach(f => {
+            if (f.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.className = 'preview-thumb';
+                img.src = URL.createObjectURL(f);
+                img.title = f.name;
+                imagePreviews.appendChild(img);
+            }
+        });
+    }
+
+    btnClearAll.addEventListener('click', () => {
+        selectedFiles = [];
+        extractedOrders = [];
+        ordersSection.style.display = 'none';
+        ordersBody.innerHTML = '';
+        uploadProgress.textContent = '';
+        updateFileListUI();
+    });
+
     btnExtract.addEventListener('click', async () => {
-        const files = fileInput.files;
-        if (!files || files.length === 0) return;
+        if (selectedFiles.length === 0) return;
 
         btnExtract.disabled = true;
         uploadProgress.textContent = '⏳ Procesando imágenes con OCR... puede tardar unos segundos por imagen.';
 
         const formData = new FormData();
-        Array.from(files).forEach(f => formData.append('images', f));
+        selectedFiles.forEach(f => formData.append('images', f));
 
         try {
-            const headers = {};
-            const apiKey = getApiKeyFromMeta();
-            if (apiKey) headers['x-api-key'] = apiKey;
-
             const res = await fetch('/api/extract-whatsapp-orders', {
                 method: 'POST',
-                headers,
                 body: formData
             });
 
@@ -198,15 +233,16 @@
         }
     });
 
-    function getApiKeyFromMeta() {
-        const meta = document.querySelector('meta[name="x-api-key"]');
-        return meta ? meta.getAttribute('content') : null;
-    }
-
     function confidenceClass(conf) {
         if (conf >= 0.8) return 'confidence-high';
         if (conf >= 0.5) return 'confidence-mid';
         return 'confidence-low';
+    }
+
+    function confidenceBarClass(conf) {
+        if (conf >= 0.8) return 'bar-high';
+        if (conf >= 0.5) return 'bar-mid';
+        return 'bar-low';
     }
 
     function confidenceLabel(conf) {
@@ -226,19 +262,27 @@
 
         noOrdersMsg.style.display = 'none';
         orderCount.textContent = `(${orders.length} pedido(s))`;
+        btnClearAll.style.display = 'inline-block';
 
         orders.forEach((order, idx) => {
             const tr = document.createElement('tr');
             tr.dataset.idx = idx;
 
             const confClass = confidenceClass(order.confidence);
+            const confBarClass = confidenceBarClass(order.confidence);
             const confLabel = confidenceLabel(order.confidence);
+            const pct = Math.round(order.confidence * 100);
 
             const rawId = 'raw_' + idx;
 
             tr.innerHTML = `
                 <td>${idx + 1}</td>
-                <td><span class="confidence-badge ${confClass}">${confLabel}</span></td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <div class="confidence-bar-wrap"><div class="confidence-bar ${confBarClass}" style="width:${pct}%"></div></div>
+                        <span class="confidence-badge ${confClass}">${confLabel}</span>
+                    </div>
+                </td>
                 <td><input type="text" value="${esc(order.customerName || '')}" placeholder="Nombre" data-field="customerName" /></td>
                 <td><input type="text" value="${esc(order.phone || '')}" placeholder="Teléfono" data-field="phone" /></td>
                 <td><input type="text" value="${esc(order.address || '')}" placeholder="Dirección" data-field="address" /></td>
@@ -258,8 +302,10 @@
                     </select>
                 </td>
                 <td>
-                    <span class="raw-text-toggle" onclick="toggleRaw('${rawId}')">Ver texto</span>
-                    <div class="raw-text-block" id="${rawId}">${esc(order.rawText || '')}</div>
+                    <details>
+                        <summary class="raw-text-toggle">Ver texto OCR</summary>
+                        <div class="raw-text-block" style="display:block;" id="${rawId}">${esc(order.rawText || '')}</div>
+                    </details>
                 </td>
                 <td>
                     <button class="btn-confirm" onclick="confirmRow(${idx})">✅ Confirmar</button>
@@ -325,8 +371,6 @@
 
         try {
             const headers = { 'Content-Type': 'application/json' };
-            const apiKey = getApiKeyFromMeta();
-            if (apiKey) headers['x-api-key'] = apiKey;
 
             const res = await fetch('/api/export-orders', {
                 method: 'POST',

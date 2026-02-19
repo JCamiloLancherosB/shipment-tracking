@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subir Guía | TechAura Shipments</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .file-list { margin-top: 0.5rem; font-size: 0.875rem; color: #555; }
+        .file-list li { list-style: none; padding: 2px 0; }
+        .progress-msg { margin-top: 0.75rem; font-style: italic; color: #666; }
+        .result-item { margin: 4px 0; }
+        .result-ok { color: #28a745; }
+        .result-err { color: #dc3545; }
+        .btn-folder { background: #6c757d; color: #fff; border: none; border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: 0.9rem; }
+        .btn-folder:hover { background: #5a6268; }
+    </style>
 </head>
 <body>
 <%- include('partials/header') %>
@@ -22,39 +32,145 @@
             </div>
             <% } %>
             
-            <form action="/api/process-guide" method="POST" enctype="multipart/form-data" id="uploadForm">
-                <div class="form-group">
-                    <label for="orderNumber">Pedido asociado (opcional):</label>
-                    <select name="orderNumber" id="orderNumber">
-                        <option value="">-- Auto-detectar --</option>
-                        <% if (typeof orders !== 'undefined' && orders) { %>
-                            <% orders.forEach(function(o) { %>
-                            <option value="<%= o.orderNumber %>"><%= o.orderNumber %> - <%= o.customerName %></option>
-                            <% }); %>
-                        <% } %>
-                    </select>
+            <div class="form-group">
+                <label for="orderNumber">Pedido asociado (opcional):</label>
+                <select name="orderNumber" id="orderNumber">
+                    <option value="">-- Auto-detectar --</option>
+                    <% if (typeof orders !== 'undefined' && orders) { %>
+                        <% orders.forEach(function(o) { %>
+                        <option value="<%= o.orderNumber %>"><%= o.orderNumber %> - <%= o.customerName %></option>
+                        <% }); %>
+                    <% } %>
+                </select>
+            </div>
+
+            <div class="drop-zone" id="dropZone">
+                <input type="file" name="guide" id="guideFile" accept=".pdf,.png,.jpg,.jpeg" multiple />
+                <div class="drop-zone-content">
+                    <span class="drop-icon">📁</span>
+                    <p>Arrastra guías aquí o haz clic para seleccionar uno o varios archivos</p>
+                    <p class="supported">Formatos: PDF, PNG, JPG</p>
                 </div>
-                
-                <div class="drop-zone" id="dropZone">
-                    <input type="file" name="guide" id="guideFile" accept=".pdf,.png,.jpg,.jpeg" required />
-                    <div class="drop-zone-content">
-                        <span class="drop-icon">📁</span>
-                        <p>Arrastra la guía aquí o haz clic para seleccionar</p>
-                        <p class="supported">Formatos: PDF, PNG, JPG</p>
-                    </div>
-                    <p class="file-name" id="fileName"></p>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
-                        Procesar y enviar
-                    </button>
-                </div>
-            </form>
+            </div>
+
+            <div style="margin-top: 0.75rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <label class="btn-folder" style="display:inline-block; cursor:pointer;">
+                    📂 Seleccionar carpeta
+                    <input type="file" id="folderInput" style="display:none" webkitdirectory multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp" />
+                </label>
+                <button type="button" class="btn" id="btnClearFiles" style="display:none">🗑 Limpiar lista</button>
+            </div>
+
+            <ul class="file-list" id="fileList"></ul>
+            <div class="progress-msg" id="progressMsg"></div>
+            <div id="resultsContainer"></div>
+
+            <div class="form-actions" style="margin-top:1rem;">
+                <button type="button" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                    Procesar y enviar
+                </button>
+            </div>
         </div>
     </main>
 </div>
 
-<script src="/js/dashboard.js"></script>
+<script>
+(function() {
+    const guideFile = document.getElementById('guideFile');
+    const folderInput = document.getElementById('folderInput');
+    const dropZone = document.getElementById('dropZone');
+    const fileListEl = document.getElementById('fileList');
+    const progressMsg = document.getElementById('progressMsg');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnClear = document.getElementById('btnClearFiles');
+
+    // Accumulated file list (DataTransfer trick for combining selections)
+    let accumulatedFiles = [];
+
+    function updateFileListUI() {
+        fileListEl.innerHTML = '';
+        accumulatedFiles.forEach(function(f, i) {
+            const li = document.createElement('li');
+            li.textContent = (i + 1) + '. ' + f.name;
+            fileListEl.appendChild(li);
+        });
+        submitBtn.disabled = accumulatedFiles.length === 0;
+        btnClear.style.display = accumulatedFiles.length > 0 ? 'inline-block' : 'none';
+    }
+
+    function addFiles(newFiles) {
+        const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.bmp'];
+        Array.from(newFiles).forEach(function(f) {
+            const ext = f.name.toLowerCase().slice(f.name.lastIndexOf('.'));
+            if (allowed.includes(ext) && !accumulatedFiles.find(function(x) { return x.name === f.name && x.size === f.size; })) {
+                accumulatedFiles.push(f);
+            }
+        });
+        updateFileListUI();
+    }
+
+    guideFile.addEventListener('change', function() { addFiles(guideFile.files); });
+    folderInput.addEventListener('change', function() { addFiles(folderInput.files); });
+
+    dropZone.addEventListener('click', function() { guideFile.click(); });
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        addFiles(e.dataTransfer.files);
+    });
+
+    btnClear.addEventListener('click', function() {
+        accumulatedFiles = [];
+        resultsContainer.innerHTML = '';
+        progressMsg.textContent = '';
+        updateFileListUI();
+    });
+
+    submitBtn.addEventListener('click', async function() {
+        if (accumulatedFiles.length === 0) return;
+        submitBtn.disabled = true;
+        resultsContainer.innerHTML = '';
+
+        const total = accumulatedFiles.length;
+        for (let i = 0; i < total; i++) {
+            const file = accumulatedFiles[i];
+            progressMsg.textContent = 'Procesando ' + (i + 1) + '/' + total + ' archivos: ' + file.name;
+
+            const formData = new FormData();
+            formData.append('guide', file);
+            const orderNumber = document.getElementById('orderNumber').value;
+            if (orderNumber) formData.append('orderNumber', orderNumber);
+
+            try {
+                const res = await fetch('/api/process-guide', { method: 'POST', body: formData });
+                const data = await res.json();
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                if (data.success) {
+                    div.innerHTML = '<span class="result-ok">✅ ' + esc(file.name) + ' — Guía enviada: ' + esc(data.trackingNumber || '') + '</span>';
+                } else {
+                    div.innerHTML = '<span class="result-err">❌ ' + esc(file.name) + ' — ' + esc(data.error || data.message || 'Error desconocido') + '</span>';
+                }
+                resultsContainer.appendChild(div);
+            } catch (err) {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = '<span class="result-err">❌ ' + esc(file.name) + ' — Error de red: ' + esc(err.message) + '</span>';
+                resultsContainer.appendChild(div);
+            }
+        }
+
+        progressMsg.textContent = 'Procesamiento completado (' + total + ' archivo(s)).';
+        submitBtn.disabled = false;
+    });
+
+    function esc(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+})();
+</script>
 </body>
 </html>

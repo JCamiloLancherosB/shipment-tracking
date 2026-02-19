@@ -47,7 +47,7 @@ describe('TechAuraIntegration', () => {
                 'http://localhost:9999/api/shipping/orders-ready',
                 {
                     headers: { 'X-API-Key': 'test-api-key' },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
         });
@@ -113,7 +113,7 @@ describe('TechAuraIntegration', () => {
                 'http://localhost:9999/api/shipping/order/ORD-001',
                 {
                     headers: { 'X-API-Key': 'test-api-key' },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
         });
@@ -174,7 +174,7 @@ describe('TechAuraIntegration', () => {
                         'X-API-Key': 'test-api-key',
                         'Content-Type': 'application/json'
                     },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
         });
@@ -244,7 +244,7 @@ describe('TechAuraIntegration', () => {
                         'X-API-Key': 'test-api-key',
                         'Content-Type': 'application/json'
                     },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
         });
@@ -300,7 +300,7 @@ describe('TechAuraIntegration', () => {
                 'http://custom-url:8080/api/shipping/orders-ready',
                 {
                     headers: { 'X-API-Key': 'custom-api-key' },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
         });
@@ -365,7 +365,7 @@ describe('TechAuraIntegration', () => {
     });
 
     describe('Timeout Configuration', () => {
-        it('should set 10 second timeout for all requests', async () => {
+        it('should set 2 second timeout for all requests', async () => {
             mockedAxios.get.mockResolvedValue({
                 data: { success: true, orders: [] }
             });
@@ -382,12 +382,12 @@ describe('TechAuraIntegration', () => {
             });
             await integration.requestMissingData('ORD-001', ['field']);
 
-            // Check all calls have timeout: 10000
+            // Check all calls have timeout: 2000
             mockedAxios.get.mock.calls.forEach(call => {
-                expect(call[1]).toEqual(expect.objectContaining({ timeout: 10000 }));
+                expect(call[1]).toEqual(expect.objectContaining({ timeout: 2000 }));
             });
             mockedAxios.post.mock.calls.forEach(call => {
-                expect(call[2]).toEqual(expect.objectContaining({ timeout: 10000 }));
+                expect(call[2]).toEqual(expect.objectContaining({ timeout: 2000 }));
             });
         });
     });
@@ -427,7 +427,7 @@ describe('TechAuraIntegration', () => {
                         'X-API-Key': 'test-api-key',
                         'Content-Type': 'application/json'
                     }),
-                    timeout: 10000
+                    timeout: 2000
                 })
             );
         });
@@ -519,7 +519,7 @@ describe('TechAuraIntegration', () => {
                         'X-API-Key': 'test-api-key',
                         'Content-Type': 'application/json'
                     }),
-                    timeout: 10000
+                    timeout: 2000
                 })
             );
         });

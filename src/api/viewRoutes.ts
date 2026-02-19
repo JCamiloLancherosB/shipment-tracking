@@ -1,6 +1,22 @@
 import express, { Request, Response, Router } from 'express';
 import { techAuraIntegration, OrderForShipping, OrderDetails } from '../services/TechAuraIntegration';
 
+const TECHAURA_ENABLED = process.env.TECHAURA_ENABLED !== 'false';
+const TECHAURA_VIEW_TIMEOUT_MS = 1500;
+
+/** Wraps a TechAura call with a timeout; returns fallback value on timeout/error */
+async function withTechAuraTimeout<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+    if (!TECHAURA_ENABLED) return fallback;
+    try {
+        return await Promise.race([
+            fn(),
+            new Promise<T>((resolve) => setTimeout(() => resolve(fallback), TECHAURA_VIEW_TIMEOUT_MS))
+        ]);
+    } catch {
+        return fallback;
+    }
+}
+
 /**
  * Interface for dashboard statistics
  */
@@ -25,7 +41,10 @@ export interface TrackingEvent {
  */
 export async function getShippingStats(): Promise<DashboardStats> {
     try {
-        const orders = await techAuraIntegration.getOrdersReadyForShipping();
+        const orders = await withTechAuraTimeout(
+            () => techAuraIntegration.getOrdersReadyForShipping(),
+            []
+        );
         
         // For now, return basic stats based on available data
         // In a full implementation, this would query the database for more detailed stats
@@ -66,7 +85,10 @@ export function createViewRouter(): Router {
     router.get('/dashboard', async (req: Request, res: Response) => {
         try {
             const stats = await getShippingStats();
-            const orders = await techAuraIntegration.getOrdersReadyForShipping();
+            const orders = await withTechAuraTimeout(
+                () => techAuraIntegration.getOrdersReadyForShipping(),
+                []
+            );
             
             // Limit to last 10 orders for dashboard
             const recentOrders = orders.slice(0, 10);
@@ -92,7 +114,10 @@ export function createViewRouter(): Router {
     // Orders list
     router.get('/orders', async (req: Request, res: Response) => {
         try {
-            const orders = await techAuraIntegration.getOrdersReadyForShipping();
+            const orders = await withTechAuraTimeout(
+                () => techAuraIntegration.getOrdersReadyForShipping(),
+                []
+            );
             
             res.render('orders', { 
                 orders,
@@ -110,11 +135,22 @@ export function createViewRouter(): Router {
         }
     });
 
+    // Order confirmation view for WhatsApp-extracted orders — must be before /orders/:orderNumber
+    router.get('/orders/confirm', (req: Request, res: Response) => {
+        res.render('order-confirmation', {
+            title: 'Confirmar Pedidos de WhatsApp',
+            currentPage: 'whatsapp'
+        });
+    });
+
     // Order detail with tracking history
     router.get('/orders/:orderNumber', async (req: Request, res: Response) => {
         try {
             const { orderNumber } = req.params;
-            const order = await techAuraIntegration.getOrderDetails(orderNumber);
+            const order = await withTechAuraTimeout(
+                () => techAuraIntegration.getOrderDetails(orderNumber),
+                null
+            );
             
             if (!order) {
                 return res.status(404).render('order-detail', {
@@ -149,7 +185,10 @@ export function createViewRouter(): Router {
     // Upload guide page
     router.get('/upload', async (req: Request, res: Response) => {
         try {
-            const orders = await techAuraIntegration.getOrdersReadyForShipping();
+            const orders = await withTechAuraTimeout(
+                () => techAuraIntegration.getOrdersReadyForShipping(),
+                []
+            );
             const selectedOrder = req.query.order as string | undefined;
             
             res.render('upload-guide', { 
@@ -172,14 +211,6 @@ export function createViewRouter(): Router {
     // Redirect root to dashboard
     router.get('/', (req: Request, res: Response) => {
         res.redirect('/dashboard');
-    });
-
-    // Order confirmation view for WhatsApp-extracted orders
-    router.get('/orders/confirm', (req: Request, res: Response) => {
-        res.render('order-confirmation', {
-            title: 'Confirmar Pedidos de WhatsApp',
-            currentPage: 'whatsapp'
-        });
     });
 
     return router;

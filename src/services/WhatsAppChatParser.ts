@@ -89,8 +89,14 @@ export class WhatsAppChatParser {
 
     extractPhone(text: string): string | null {
         // Colombian phone formats: 3XXXXXXXXX, +57 3XX..., 312 799 64 51, 317 3808722
+        // Also handles: "TEL. 312 799 64 51", "+57 317 3808722", "Tel 317 3808722", "Celular: 3126444610"
         const patterns = [
+            /(?:tel(?:éfono|efono)?\.?|cel(?:ular)?\.?|celular\s*:)\s*\+?57\s*3\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/i,
+            /(?:tel(?:éfono|efono)?\.?|cel(?:ular)?\.?|celular\s*:)\s*\+?57\s*3\d{2}[\s-]?\d{7}/i,
+            /(?:tel(?:éfono|efono)?\.?|cel(?:ular)?\.?|celular\s*:)\s*3\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/i,
+            /(?:tel(?:éfono|efono)?\.?|cel(?:ular)?\.?|celular\s*:)\s*3\d{2}[\s-]?\d{7}/i,
             /\+57\s*3\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/,
+            /\+57\s*3\d{2}[\s-]?\d{7}/,
             /\b3\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}\b/,
             /\b3\d{2}[\s-]?\d{7}\b/,
             /\b3\d{9}\b/
@@ -99,8 +105,14 @@ export class WhatsAppChatParser {
         for (const pattern of patterns) {
             const match = text.match(pattern);
             if (match) {
-                // Normalize: remove spaces, dashes, +57 prefix
-                return match[0].replace(/[\s\-+]/g, '').replace(/^57/, '');
+            // Normalize: extract digits only, remove country code 57 if present
+            const digits = match[0].replace(/[^\d]/g, '');
+            // If 12 digits starting with 57, strip country code; take last 10 digits
+            if (digits.startsWith('57') && digits.length === 12) {
+                return digits.slice(2);
+            }
+            // Return last 10 digits only if we have at least 10
+            return digits.length >= 10 ? digits.slice(-10) : digits;
             }
         }
         return null;
@@ -125,14 +137,30 @@ export class WhatsAppChatParser {
             }
         }
 
-        // Fallback: look for capitalized word sequences that look like full names
-        const lines = text.split('\n');
+        // Heuristic: in WhatsApp order messages the name is often the first or last non-empty line
+        // that looks like a proper name (2-4 capitalized words, no digits, no address keywords)
+        const addressKeywords = /\b(?:calle|cl|carrera|cra|avenida|av|barrio|tel|cel|cc|nit|oficina|interrapidisimo|servientrega|bello|bogot|medellin|medellín|cali|buga|ant|valle)\b/i;
+        const fullNamePattern = /^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+){1,3}$/;
+
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+        // Check first non-phone line
         for (const line of lines) {
-            const trimmed = line.trim();
-            // A full name typically has 2-4 words, each starting with an uppercase Latin letter
-            const fullNamePattern = /^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+){1,3}$/;
-            if (fullNamePattern.test(trimmed) && trimmed.split(' ').length >= 2) {
-                return trimmed;
+            if (/^\+?57\s*3\d/.test(line) || /^\d/.test(line)) continue; // skip phone/digit lines
+            if (addressKeywords.test(line)) continue;
+            if (fullNamePattern.test(line) && line.split(' ').length >= 2) {
+                return line;
+            }
+        }
+
+        // Check last line
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const line = lines[i];
+            if (/^\+?57\s*3\d/.test(line) || /^\d/.test(line)) continue;
+            if (addressKeywords.test(line)) continue;
+            // Last line may be shorter (e.g. "Jezus h") — allow single word if title-case
+            if (/^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Za-z\u00C0-\u024F][a-z\u00C0-\u024F]*)*$/.test(line) && line.length >= 3) {
+                return line;
             }
         }
 
@@ -140,15 +168,16 @@ export class WhatsAppChatParser {
     }
 
     extractAddress(text: string): string | null {
-        // Address keywords in Spanish
+        // Address keywords in Spanish — including abbreviated forms used in Colombia
         const addressKeywords = [
             /(?:dirección|direccion|dir)[:\s]+(.+?)(?:\n|ciudad|barrio|tel|cel|$)/i,
-            /(?:calle|cl)\s*\d+\s*(?:#|No\.?|nro\.?)\s*[\d\-]+[^,\n]*/i,
-            /(?:carrera|cra|cr)\s*\d+\s*(?:#|No\.?|nro\.?)\s*[\d\-]+[^,\n]*/i,
-            /(?:avenida|av|avda)\s+[\w\s]+\s*(?:#|No\.?|nro\.?)?\s*[\d\-]+[^,\n]*/i,
-            /(?:transversal|tv)\s*\d+\s*(?:#|No\.?|nro\.?)\s*[\d\-]+[^,\n]*/i,
-            /(?:diagonal|dg)\s*\d+\s*(?:#|No\.?|nro\.?)\s*[\d\-]+[^,\n]*/i,
-            /(?:circular|circ)\s*\d+\s*(?:#|No\.?|nro\.?)\s*[\d\-]+[^,\n]*/i
+            /(?:calle|cl)\s*\d+[\w\s]*(?:#|No\.?|nro\.?|n)\s*[\d\-]+[^,\n]*/i,
+            /(?:carrera|cra|cr)\s*\d+[\w\s]*(?:#|No\.?|nro\.?|n)\s*[\d\-]+[^,\n]*/i,
+            /(?:avenida|av(?:da)?\.?)\s+[\w\s]+\s*(?:#|No\.?|nro\.?|n)?\s*[\d\-]+[^,\n]*/i,
+            /(?:transversal|tv)\s*\d+[\w\s]*(?:#|No\.?|nro\.?|n)\s*[\d\-]+[^,\n]*/i,
+            /(?:diagonal|dg)\s*\d+[\w\s]*(?:#|No\.?|nro\.?|n)\s*[\d\-]+[^,\n]*/i,
+            /(?:circular|circ)\s*\d+[\w\s]*(?:#|No\.?|nro\.?|n)\s*[\d\-]+[^,\n]*/i,
+            /(?:manzana|mz)\s*[\w\d]+\s*(?:casa|ap\.?|apto\.?|local|torre|bloque|piso)?\s*[\w\d]*/i
         ];
 
         for (const pattern of addressKeywords) {
@@ -206,10 +235,12 @@ export class WhatsAppChatParser {
 
     extractNeighborhood(text: string): string | null {
         const patterns = [
-            /barrio[:\s]+([^\n,;.]+)/i,
+            /barri[oó][:\s]+([^\n,;.]+)/i,
+            /b\/[:\s]*([^\n,;.]+)/i,
+            /brio[:\s]+([^\n,;.]+)/i,
             /sector[:\s]+([^\n,;.]+)/i,
-            /b\/[:\s]+([^\n,;.]+)/i,
-            /urbanización[:\s]+([^\n,;.]+)/i
+            /urb(?:anización|anizacion|\.)[:\s]+([^\n,;.]+)/i,
+            /conj(?:unto|\.)[:\s]+([^\n,;.]+)/i
         ];
 
         for (const pattern of patterns) {
@@ -223,8 +254,9 @@ export class WhatsAppChatParser {
 
     extractCedula(text: string): string | null {
         const patterns = [
-            /(?:c\.?c\.?|cédula|cedula|cc|documento)[:\s#]?\s*(\d{6,10})/i,
-            /\bID[:\s]+(\d{6,10})\b/i
+            /(?:c\.?c\.?|cédula|cedula|documento|doc\.?|nit)[:\s#]?\s*(\d{6,12})/i,
+            /\bID[:\s]+(\d{6,12})\b/i,
+            /\bcc\s+(\d{6,12})\b/i
         ];
 
         for (const pattern of patterns) {
@@ -237,16 +269,19 @@ export class WhatsAppChatParser {
     }
 
     private extractReferences(text: string): string | null {
-        const patterns = [
+        // Detect delivery type first (oficina transportadora, etc.)
+        const deliveryPatterns = [
+            /(?:oficina\s+(?:interrapid[ií]simo|servientrega|coordinadora|env[ií]a|deprisa)[^\n]*)/i,
+            /(?:entregar?\s+en\s+oficina[^\n]*)/i,
             /(?:referencia|ref\.?|nota|observación|observacion|indicación|indicacion)[:\s]+([^\n]+)/i,
             /(?:entregar|entrega)[:\s]+([^\n]+)/i,
             /(?:punto\s+de\s+referencia)[:\s]+([^\n]+)/i
         ];
 
-        for (const pattern of patterns) {
+        for (const pattern of deliveryPatterns) {
             const match = text.match(pattern);
-            if (match?.[1]) {
-                return match[1].trim();
+            if (match) {
+                return (match[1] || match[0]).trim();
             }
         }
         return null;

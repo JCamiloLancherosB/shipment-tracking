@@ -70,7 +70,10 @@
                     </tbody>
                 </table>
                 <% } else { %>
-                <p class="empty-state">No hay pedidos pendientes</p>
+                <div class="empty-state-container">
+                    <p class="empty-state">⚠️ Sin conexión a base de datos o al bot de TechAura.</p>
+                    <p>El sistema funciona en modo standalone para procesar guías de WhatsApp. Conecta la base de datos TechAura para ver pedidos automáticos.</p>
+                </div>
                 <% } %>
             </div>
         </div>

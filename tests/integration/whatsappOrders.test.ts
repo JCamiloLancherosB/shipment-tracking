@@ -110,11 +110,13 @@ describe('WhatsApp Orders API Endpoints', () => {
             expect(response.body.orders[0]).toHaveProperty('confidence');
         });
 
-        it('should require API key authentication', async () => {
-            await request(app)
+        it('should work without API key authentication', async () => {
+            const response = await request(app)
                 .post('/api/extract-whatsapp-orders')
                 .attach('images', testImagePath)
-                .expect(401);
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
         });
     });
 

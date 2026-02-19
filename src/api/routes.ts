@@ -139,17 +139,59 @@ export function setupRoutes(app: express.Application, services: Services): void 
         }
     });
 
-    // Manual guide upload and processing
-    app.post('/api/process-guide', apiKeyAuth, uploadLimiter, upload.single('guide'), async (req: Request, res: Response) => {
-        try {
-            if (!req.file) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'No file uploaded' 
-                });
-            }
+    // Manual guide upload and processing — accepts multiple files
+    app.post('/api/process-guide', apiKeyAuth, uploadLimiter, upload.array('guide', 50), async (req: Request, res: Response) => {
+        const files = req.files as Express.Multer.File[] | undefined;
 
-            const filePath = req.file.path;
+        // Support legacy single-file usage (upload.single sets req.file)
+        const singleFile = (req as any).file as Express.Multer.File | undefined;
+        const allFiles = files && files.length > 0 ? files : (singleFile ? [singleFile] : []);
+
+        if (allFiles.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No se subió ningún archivo' 
+            });
+        }
+
+        // If multiple files, process each and return array of results
+        if (allFiles.length > 1) {
+            const results = [];
+            for (const file of allFiles) {
+                try {
+                    const guideData = await services.parser.parse(file.path);
+                    if (!guideData) {
+                        fs.existsSync(file.path) && fs.unlinkSync(file.path);
+                        results.push({ success: false, fileName: file.originalname, error: 'No se pudo leer la guía. Verifica que sea una imagen de guía de transportadora, no una captura de WhatsApp.' });
+                        continue;
+                    }
+                    const customer = await services.matcher.findCustomer(guideData);
+                    if (!customer) {
+                        fs.existsSync(file.path) && fs.unlinkSync(file.path);
+                        results.push({ success: false, fileName: file.originalname, message: 'No se encontró cliente asociado', guideData });
+                        continue;
+                    }
+                    const sent = await services.sender.sendGuide(customer.phone, guideData, file.path);
+                    if (sent) {
+                        await services.matcher.updateOrderTracking(customer.orderNumber, guideData.trackingNumber, guideData.carrier);
+                        fs.existsSync(file.path) && fs.unlinkSync(file.path);
+                        results.push({ success: true, fileName: file.originalname, trackingNumber: guideData.trackingNumber, sentTo: customer.phone, customer: customer.name });
+                    } else {
+                        fs.existsSync(file.path) && fs.unlinkSync(file.path);
+                        results.push({ success: false, fileName: file.originalname, error: 'Error al enviar la guía por WhatsApp' });
+                    }
+                } catch (err: any) {
+                    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                    results.push({ success: false, fileName: file.originalname, error: err.message || 'Error interno' });
+                }
+            }
+            return res.json({ success: true, results });
+        }
+
+        // Single file path (original behaviour)
+        const file = allFiles[0];
+        try {
+            const filePath = file.path;
 
             // Parse the guide
             const guideData = await services.parser.parse(filePath);
@@ -157,7 +199,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 fs.unlinkSync(filePath); // Clean up
                 return res.status(400).json({ 
                     success: false, 
-                    error: 'Could not parse guide data' 
+                    error: 'No se pudo leer la guía. Verifica que sea una imagen de guía de transportadora, no una captura de WhatsApp.' 
                 });
             }
 
@@ -167,7 +209,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 fs.unlinkSync(filePath); // Clean up
                 return res.json({
                     success: false,
-                    message: 'No matching customer found',
+                    message: 'No se encontró cliente asociado',
                     guideData
                 });
             }
@@ -187,7 +229,7 @@ export function setupRoutes(app: express.Application, services: Services): void 
 
                 return res.json({
                     success: true,
-                    message: 'Guide sent successfully',
+                    message: 'Guía enviada correctamente',
                     trackingNumber: guideData.trackingNumber,
                     sentTo: customer.phone,
                     customer: customer.name
@@ -197,27 +239,27 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 fs.unlinkSync(filePath);
                 return res.status(500).json({
                     success: false,
-                    error: 'Failed to send guide via WhatsApp'
+                    error: 'Error al enviar la guía por WhatsApp'
                 });
             }
         } catch (error: any) {
             console.error('Error processing guide:', error);
             
             // Clean up file if it exists
-            if (req.file?.path && fs.existsSync(req.file.path)) {
-                fs.unlinkSync(req.file.path);
+            if (file?.path && fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path);
             }
 
             if (error.message === 'Database not connected') {
                 return res.status(503).json({
                     success: false,
-                    error: 'Database not connected yet'
+                    error: 'Base de datos no conectada'
                 });
             }
 
             return res.status(500).json({ 
                 success: false, 
-                error: error.message || 'Internal server error'
+                error: error.message || 'Error interno del servidor'
             });
         }
     });
@@ -310,8 +352,8 @@ export function setupRoutes(app: express.Application, services: Services): void 
         }
     });
 
-    // Extract order data from WhatsApp chat screenshots
-    app.post('/api/extract-whatsapp-orders', apiKeyAuth, uploadLimiter, upload.array('images', 20), async (req: Request, res: Response) => {
+    // Extract order data from WhatsApp chat screenshots — API key optional (uses session auth fallback)
+    app.post('/api/extract-whatsapp-orders', uploadLimiter, upload.array('images', 20), async (req: Request, res: Response) => {
         const uploadedPaths: string[] = [];
         try {
             const files = req.files as Express.Multer.File[] | undefined;

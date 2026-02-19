@@ -112,7 +112,7 @@ describe('API Routes Integration Tests', () => {
 
       expect(response.body).toEqual({
         success: true,
-        message: 'Guide sent successfully',
+        message: 'Guía enviada correctamente',
         trackingNumber: mockParsedGuideData.trackingNumber,
         sentTo: mockCustomerMatch.phone,
         customer: mockCustomerMatch.name
@@ -132,7 +132,7 @@ describe('API Routes Integration Tests', () => {
 
       expect(response.body).toEqual({
         success: false,
-        error: 'No file uploaded'
+        error: 'No se subió ningún archivo'
       });
     });
 
@@ -147,7 +147,7 @@ describe('API Routes Integration Tests', () => {
 
       expect(response.body).toEqual({
         success: false,
-        error: 'Could not parse guide data'
+        error: 'No se pudo leer la guía. Verifica que sea una imagen de guía de transportadora, no una captura de WhatsApp.'
       });
     });
 
@@ -163,7 +163,7 @@ describe('API Routes Integration Tests', () => {
 
       expect(response.body).toEqual({
         success: false,
-        message: 'No matching customer found',
+        message: 'No se encontró cliente asociado',
         guideData: mockParsedGuideData
       });
     });
@@ -181,7 +181,7 @@ describe('API Routes Integration Tests', () => {
 
       expect(response.body).toEqual({
         success: false,
-        error: 'Failed to send guide via WhatsApp'
+        error: 'Error al enviar la guía por WhatsApp'
       });
     });
 
@@ -534,7 +534,7 @@ describe('API Routes Integration Tests', () => {
         .send({ data: 'not a file' })
         .expect(400);
 
-      expect(response.body.error).toBe('No file uploaded');
+      expect(response.body.error).toBe('No se subió ningún archivo');
     });
   });
 
