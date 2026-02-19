@@ -5,8 +5,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { GuideParser } from '../services/GuideParser';
-import { ICustomerMatcher } from '../types';
+import { ICustomerMatcher, BulkOrderExportRow } from '../types';
 import { WhatsAppSender } from '../services/WhatsAppSender';
+import { WhatsAppChatParser } from '../services/WhatsAppChatParser';
 import webhooksRouter from '../routes/webhooks';
 import carrierRoutes from './carrierRoutes';
 import { apiKeyAuth } from '../middleware/auth';
@@ -309,6 +310,98 @@ export function setupRoutes(app: express.Application, services: Services): void 
         }
     });
 
+    // Extract order data from WhatsApp chat screenshots
+    app.post('/api/extract-whatsapp-orders', apiKeyAuth, uploadLimiter, upload.array('images', 20), async (req: Request, res: Response) => {
+        const uploadedPaths: string[] = [];
+        try {
+            const files = req.files as Express.Multer.File[] | undefined;
+            if (!files || files.length === 0) {
+                return res.status(400).json({ success: false, error: 'No images uploaded' });
+            }
+
+            files.forEach(f => uploadedPaths.push(f.path));
+
+            const parser = new WhatsAppChatParser();
+            const orders = await parser.parseImages(files.map(f => f.path));
+
+            // Clean up uploaded files
+            uploadedPaths.forEach(p => { try { fs.unlinkSync(p); } catch { /* ignore */ } });
+
+            return res.json({ success: true, orders });
+        } catch (error: any) {
+            uploadedPaths.forEach(p => { try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch { /* ignore */ } });
+            return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+        }
+    });
+
+    // Export confirmed orders to CSV or Excel
+    app.post('/api/export-orders', apiKeyAuth, async (req: Request, res: Response) => {
+        try {
+            const { orders, format } = req.body as { orders: BulkOrderExportRow[]; format?: string };
+
+            if (!Array.isArray(orders) || orders.length === 0) {
+                return res.status(400).json({ success: false, error: 'No orders provided' });
+            }
+
+            const columns = [
+                'NOMBRE DESTINATARIO', 'TELEFONO', 'DIRECCION', 'CIUDAD', 'BARRIO',
+                'CON RECAUDO', 'NOTA', 'EMAIL (OPCIONAL)', 'ID DE VARIABLE (OPCIONAL)',
+                'CODIGO POSTAL (OPCIONAL)', 'TRANSPORTADORA (OPCIONAL)', 'CEDULA (OPCIONAL)',
+                'COLONIA (OBLIGATORIO SOLO PARA QUIKEN)', 'SEGURO (SOLO APLICA PARA ENVIA)'
+            ];
+
+            const rows = orders.map(o => [
+                o.nombreDestinatario || '',
+                o.telefono || '',
+                o.direccion || '',
+                o.ciudad || '',
+                o.barrio || '',
+                o.conRecaudo || '',
+                o.nota || '',
+                o.email || '',
+                o.idVariable || '',
+                o.codigoPostal || '',
+                o.transportadora || '',
+                o.cedula || '',
+                o.colonia || '',
+                o.seguro || ''
+            ]);
+
+            if (format === 'xlsx') {
+                const ExcelJS = await import('exceljs');
+                const workbook = new ExcelJS.Workbook();
+                const sheet = workbook.addWorksheet('Ordenes Masivas');
+
+                sheet.addRow(columns);
+                const headerRow = sheet.getRow(1);
+                headerRow.font = { bold: true };
+                headerRow.commit();
+
+                rows.forEach(row => sheet.addRow(row));
+
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                res.setHeader('Content-Disposition', 'attachment; filename="ordenes_masivas.xlsx"');
+
+                await workbook.xlsx.write(res);
+                return res.end();
+            } else {
+                // Default: CSV
+                const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+                const csvLines = [
+                    columns.map(escape).join(','),
+                    ...rows.map(row => row.map(escape).join(','))
+                ];
+                const csv = csvLines.join('\r\n');
+
+                res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+                res.setHeader('Content-Disposition', 'attachment; filename="ordenes_masivas.csv"');
+                return res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
+            }
+        } catch (error: any) {
+            return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+        }
+    });
+
     // 404 handler
     app.use((req: Request, res: Response) => {
         res.status(404).json({ 
@@ -319,6 +412,9 @@ export function setupRoutes(app: express.Application, services: Services): void 
                 'POST /api/process-guide',
                 'POST /api/test-parse',
                 'POST /api/test-match',
+                'POST /api/extract-whatsapp-orders',
+                'POST /api/export-orders',
+                'GET /orders/confirm',
                 'POST /webhooks/order-completed',
                 'POST /webhooks/new-order',
                 'GET /api/tracking/:trackingNumber',

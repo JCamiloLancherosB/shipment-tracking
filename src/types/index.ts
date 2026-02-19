@@ -33,6 +33,38 @@ export interface ProcessResult {
     error?: string;
 }
 
+export interface ExtractedOrderData {
+    customerName: string | null;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+    neighborhood: string | null;
+    department: string | null;
+    cedula: string | null;
+    references: string | null;
+    product: string | null;
+    rawText: string;
+    confidence: number;
+    imageSource?: string;
+}
+
+export interface BulkOrderExportRow {
+    nombreDestinatario: string;
+    telefono: string;
+    direccion: string;
+    ciudad: string;
+    barrio: string;
+    conRecaudo: string;
+    nota: string;
+    email: string;
+    idVariable: string;
+    codigoPostal: string;
+    transportadora: string;
+    cedula: string;
+    colonia: string;
+    seguro: string;
+}
+
 export interface CreateShipmentRequest {
     orderNumber: string;
     customerName: string;
