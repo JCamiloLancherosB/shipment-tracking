@@ -3,9 +3,58 @@ import * as path from 'path';
 import { ShippingGuideData } from '../types';
 import colombianCities from '../data/colombian-cities.json';
 
+export class WhatsAppChatDetectedError extends Error {
+    constructor() {
+        super('WHATSAPP_CHAT_DETECTED');
+        this.name = 'WhatsAppChatDetectedError';
+    }
+}
+
 export class GuideParser {
     private pdfParse: any = null;
     private tesseract: any = null;
+
+    /**
+     * Detects whether the OCR text comes from a WhatsApp chat screenshot,
+     * a carrier shipping guide, or an unknown image type.
+     */
+    detectImageType(text: string): 'carrier_guide' | 'whatsapp_chat' | 'unknown' {
+        const lower = text.toLowerCase();
+
+        // Carrier patterns
+        const carrierPattern = /servientrega|coordinadora|inter\s*r[aá]pidisimo|env[ií]a|colvanes|\btcc\b|\b472\b/i; // 472 is a Colombian postal/courier carrier
+        const trackingPattern = /(?:gu[íi]a|tracking|numero|guia)\s*[:#]?\s*[A-Z0-9]{6,}|\b\d{10,15}\b|[A-Z]{2,3}\d{9,12}/;
+
+        const hasCarrier = carrierPattern.test(text);
+        const hasTracking = trackingPattern.test(text);
+
+        if (hasCarrier && hasTracking) {
+            return 'carrier_guide';
+        }
+
+        // WhatsApp chat patterns
+        const hasTimestamp = /\d{1,2}:\d{2}\s*[ap]\.?m\.?/i.test(text);
+        const hasChatWords = /buenos\s*d[íi]as|buenas\s*tardes|buenas\s*noches|por\s*supuesto|ok\s*gracias/i.test(lower);
+        const hasAddressIndicators = /\bbarrio\b|tel\.|cel\.|avenida|calle\b|carrera\b/i.test(text);
+        const hasWhatsAppHeader = /\+57\s*3\d{9}/.test(text);
+        const hasWhatsAppTicks = /✓✓|✓/.test(text);
+
+        const whatsappScore = [hasTimestamp, hasChatWords, hasAddressIndicators, hasWhatsAppHeader, hasWhatsAppTicks]
+            .filter(Boolean).length;
+
+        if (whatsappScore >= 2 && !hasCarrier) {
+            return 'whatsapp_chat';
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Returns true if the OCR text appears to be a WhatsApp chat screenshot.
+     */
+    isWhatsAppChat(text: string): boolean {
+        return this.detectImageType(text) === 'whatsapp_chat';
+    }
 
     async parse(filePath: string): Promise<ShippingGuideData | null> {
         const ext = path.extname(filePath).toLowerCase();
@@ -23,6 +72,9 @@ export class GuideParser {
 
             return this.extractData(text);
         } catch (error) {
+            if (error instanceof WhatsAppChatDetectedError) {
+                throw error;
+            }
             console.error(`Error parsing ${filePath}:`, error);
             return null;
         }
@@ -57,6 +109,10 @@ export class GuideParser {
     }
 
     private extractData(text: string): ShippingGuideData | null {
+        if (this.isWhatsAppChat(text)) {
+            throw new WhatsAppChatDetectedError();
+        }
+
         const data: Partial<ShippingGuideData> = { rawText: text };
 
         // Carrier detection

@@ -147,7 +147,7 @@ describe('API Routes Integration Tests', () => {
 
       expect(response.body).toEqual({
         success: false,
-        error: 'No se pudo leer la guía. Verifica que sea una imagen de guía de transportadora, no una captura de WhatsApp.'
+        error: '⚠️ Esta imagen no parece ser una guía de transportadora. Si tienes capturas de WhatsApp con datos de clientes, usa la sección "📱 Guías desde WhatsApp".'
       });
     });
 

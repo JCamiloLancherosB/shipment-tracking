@@ -25,6 +25,16 @@
     <main class="main-content">
         <div class="upload-section">
             <h1>📤 Subir Guía de Envío</h1>
+
+            <div class="info-box" style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:1rem; margin-bottom:1.5rem;">
+              <h3 style="margin-top:0;">ℹ️ ¿Qué subir aquí?</h3>
+              <p>Esta sección es para <strong>guías de envío de transportadoras</strong> (etiquetas PDF o imágenes de Servientrega, InterRápidísimo, Coordinadora, etc.)</p>
+              <p>✅ <strong>Correcto:</strong> Imagen/PDF de la etiqueta con número de guía y código de barras</p>
+              <p>❌ <strong>Incorrecto:</strong> Capturas de pantalla de chats de WhatsApp</p>
+              <hr style="border-color:#ffc107;">
+              <p>Si tienes <strong>capturas de chats de WhatsApp</strong> con datos de clientes para crear pedidos, usa:</p>
+              <a href="/orders/confirm" class="btn btn-primary">📱 Guías desde WhatsApp →</a>
+            </div>
             
             <% if (typeof message !== 'undefined' && message) { %>
             <div class="alert <%= typeof success !== 'undefined' && success ? 'alert-success' : 'alert-error' %>">
@@ -152,7 +162,12 @@
                 if (data.success) {
                     div.innerHTML = '<span class="result-ok">✅ ' + esc(file.name) + ' — Guía enviada: ' + esc(data.trackingNumber || '') + '</span>';
                 } else {
-                    div.innerHTML = '<span class="result-err">❌ ' + esc(file.name) + ' — ' + esc(data.error || data.message || 'Error desconocido') + '</span>';
+                    const errMsg = data.error || data.message || 'Error desconocido';
+                    let html = '<span class="result-err">❌ ' + esc(file.name) + ' — ' + esc(errMsg) + '</span>';
+                    if (errMsg.includes('WhatsApp')) {
+                        html += ' <a href="/orders/confirm" class="btn btn-primary" style="font-size:0.85rem; padding:2px 10px; margin-left:8px;">📱 Ir a Guías desde WhatsApp →</a>';
+                    }
+                    div.innerHTML = html;
                 }
                 resultsContainer.appendChild(div);
             } catch (err) {
