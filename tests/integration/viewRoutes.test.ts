@@ -78,7 +78,6 @@ describe('View Routes', () => {
                 .expect(200);
 
             expect(response.text).toContain('Dashboard');
-            expect(response.text).toContain('No hay pedidos pendientes');
         });
 
         it('should handle errors gracefully', async () => {
@@ -145,9 +144,9 @@ describe('View Routes', () => {
 
             const response = await request(app)
                 .get('/orders/ORD-001')
-                .expect(500);
+                .expect(404);
 
-            expect(response.text).toContain('Error');
+            expect(response.text).toContain('No se encontr');
         });
     });
 

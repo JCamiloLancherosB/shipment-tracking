@@ -103,7 +103,7 @@ export class TechAuraIntegration {
                 `${this.apiUrl}/api/shipping/orders-ready`,
                 {
                     headers: { 'X-API-Key': this.apiKey },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
 
@@ -129,7 +129,7 @@ export class TechAuraIntegration {
                 `${this.apiUrl}/api/shipping/order/${encodeURIComponent(orderNumber)}`,
                 {
                     headers: { 'X-API-Key': this.apiKey },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
 
@@ -160,7 +160,7 @@ export class TechAuraIntegration {
                         'X-API-Key': this.apiKey,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
 
@@ -189,7 +189,7 @@ export class TechAuraIntegration {
                         'X-API-Key': this.apiKey,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
 
@@ -224,7 +224,7 @@ export class TechAuraIntegration {
                         'X-API-Key': this.apiKey,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
 
@@ -258,7 +258,7 @@ export class TechAuraIntegration {
                         'X-API-Key': this.apiKey,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 10000
+                    timeout: 2000
                 }
             );
 
